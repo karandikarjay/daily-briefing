@@ -88,29 +88,30 @@ def get_gq_sitemap_urls(sitemap_index_url):
         return []
 
 
-def get_latest_two_dates_articles(sitemap_urls, source_name):
+def get_latest_24h_articles(sitemap_urls, source_name):
     """
-    Retrieves article URLs from a list of sitemap URLs for the last two available dates.
+    Retrieves article URLs from a list of sitemap URLs for the last 24 hours
+    from the most recent article.
     """
     all_urls = []
-    latest_dates = set()
+    latest_datetime = None
     ns = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 
+    # First pass: find the most recent article timestamp
     for sitemap_url in sitemap_urls:
         try:
             response = requests.get(sitemap_url, headers=HEADERS)
             response.raise_for_status()
             root = ET.fromstring(response.content)
             for url_elem in root.findall("ns:url", ns):
-                loc_elem = url_elem.find("ns:loc", ns)
                 lastmod_elem = url_elem.find("ns:lastmod", ns)
-                if loc_elem is not None and lastmod_elem is not None:
+                if lastmod_elem is not None:
                     try:
                         lastmod_dt = datetime.fromisoformat(lastmod_elem.text)
                         if lastmod_dt.tzinfo is None:
                             lastmod_dt = lastmod_dt.replace(tzinfo=timezone.utc)
-                        lastmod_eastern = lastmod_dt.astimezone(EASTERN)
-                        latest_dates.add(lastmod_eastern.date())
+                        if latest_datetime is None or lastmod_dt > latest_datetime:
+                            latest_datetime = lastmod_dt
                     except Exception as e:
                         logging.error("Error parsing date %s: %s", lastmod_elem.text, e)
                         continue
@@ -118,8 +119,15 @@ def get_latest_two_dates_articles(sitemap_urls, source_name):
             logging.exception("Error processing sitemap %s", sitemap_url)
             continue
 
-    latest_dates = sorted(latest_dates, reverse=True)[:2]
+    if latest_datetime is None:
+        logging.error("No valid timestamps found in sitemaps for %s", source_name)
+        return []
 
+    # Calculate the cutoff time (24 hours before the most recent article)
+    cutoff_time = latest_datetime - timedelta(hours=24)
+    logging.info("%s: Using articles between %s and %s", source_name, cutoff_time, latest_datetime)
+
+    # Second pass: collect articles within the 24-hour window
     for sitemap_url in sitemap_urls:
         try:
             response = requests.get(sitemap_url, headers=HEADERS)
@@ -132,15 +140,14 @@ def get_latest_two_dates_articles(sitemap_urls, source_name):
                     lastmod_dt = datetime.fromisoformat(lastmod_elem.text)
                     if lastmod_dt.tzinfo is None:
                         lastmod_dt = lastmod_dt.replace(tzinfo=timezone.utc)
-                    lastmod_eastern = lastmod_dt.astimezone(EASTERN)
 
-                    if lastmod_eastern.date() in latest_dates:
+                    if cutoff_time <= lastmod_dt <= latest_datetime:
                         all_urls.append(loc_elem.text)
         except Exception as e:
             logging.exception("Error processing sitemap %s", sitemap_url)
             continue
 
-    logging.info("Collected %d article URLs from %s for the last two dates %s", len(all_urls), source_name, latest_dates)
+    logging.info("Collected %d article URLs from %s in the last 24 hours", len(all_urls), source_name)
     return all_urls
 
 
@@ -174,12 +181,12 @@ def get_gq_content():
     """
     Main function to retrieve Green Queen content by:
       1. Getting the sitemap URLs.
-      2. Extracting the article URLs for the last two dates.
+      2. Extracting the article URLs for the last 24 hours from the most recent article.
       3. Downloading article content.
     """
     sitemap_index_url = "https://www.greenqueen.com.hk/sitemap_index.xml"
     post_sitemap_urls = get_gq_sitemap_urls(sitemap_index_url)
-    article_urls = get_latest_two_dates_articles(post_sitemap_urls, "Green Queen")
+    article_urls = get_latest_24h_articles(post_sitemap_urls, "Green Queen")
     articles = get_gq_article_content(article_urls)
     return articles
 
@@ -297,7 +304,7 @@ def get_axios_article(url):
 def get_fast_email_content():
     """
     Connects to the Gmail IMAP server and retrieves emails that include the specified email
-    (FAST email list) in any "to" or "from" field for the last two dates for which there are any emails.
+    (FAST email list) in any "to" or "from" field for the last 24 hours from the most recent email.
     Returns a list of email contents.
     """
     IMAP_SERVER = "imap.gmail.com"
@@ -309,57 +316,64 @@ def get_fast_email_content():
         mail.login(GOOGLE_USERNAME, GOOGLE_PASSWORD)
         mail.select("inbox")
 
-        # Calculate the date two weeks ago
+        # Calculate the date two weeks ago (for initial search)
         two_weeks_ago = (datetime.now(EASTERN) - timedelta(weeks=2)).strftime("%d-%b-%Y")
 
         # Search for emails that include the specified email in any "to" or "from" field within the past two weeks
         status, data = mail.search(None, f'(OR (TO "{search_email}" SINCE {two_weeks_ago}) (FROM "{search_email}" SINCE {two_weeks_ago}))')
         email_ids = data[0].split()
 
-        email_dates = set()
+        latest_datetime = None
+        email_dates = []
 
-        # Fetch email dates
+        # First pass: find the most recent email timestamp
         for email_id in email_ids:
             status, msg_data = mail.fetch(email_id, "(BODY.PEEK[HEADER])")
             for response_part in msg_data:
                 if isinstance(response_part, tuple):
                     msg = email.message_from_bytes(response_part[1])
                     date_tuple = parsedate_to_datetime(msg["Date"])
-                    email_dates.add(date_tuple.date())
+                    if latest_datetime is None or date_tuple > latest_datetime:
+                        latest_datetime = date_tuple
 
-        latest_dates = sorted(email_dates, reverse=True)[:2]
+        if latest_datetime is None:
+            logging.error("No valid timestamps found in FAST emails")
+            return []
+
+        # Calculate the cutoff time (24 hours before the most recent email)
+        cutoff_time = latest_datetime - timedelta(hours=24)
+        logging.info("FAST: Using emails between %s and %s", cutoff_time, latest_datetime)
 
         emails_content = []
 
-        # Fetch emails for the last two dates
+        # Second pass: fetch emails within the 24-hour window
         for email_id in email_ids:
             status, msg_data = mail.fetch(email_id, "(RFC822)")
             for response_part in msg_data:
                 if isinstance(response_part, tuple):
                     msg = email.message_from_bytes(response_part[1])
                     date_tuple = parsedate_to_datetime(msg["Date"])
-                    if date_tuple.date() not in latest_dates:
-                        continue
+                    
+                    if cutoff_time <= date_tuple <= latest_datetime:
+                        subject, encoding = decode_header(msg["Subject"])[0]
+                        if isinstance(subject, bytes):
+                            subject = subject.decode(encoding if encoding else "utf-8")
 
-                    subject, encoding = decode_header(msg["Subject"])[0]
-                    if isinstance(subject, bytes):
-                        subject = subject.decode(encoding if encoding else "utf-8")
+                        # Remove 'FAST ♞ ' from the subject if present
+                        subject = subject.replace('FAST ♞ ', '')
 
-                    # Remove 'FAST ♞ ' from the subject if present
-                    subject = subject.replace('FAST ♞ ', '')
-
-                    if msg.is_multipart():
-                        for part in msg.walk():
-                            content_type = part.get_content_type()
-                            if content_type == "text/plain":
-                                body = part.get_payload(decode=True).decode()
-                                emails_content.append({"subject": subject, "body": body})
-                    else:
-                        body = msg.get_payload(decode=True).decode()
-                        emails_content.append({"subject": subject, "body": body})
+                        if msg.is_multipart():
+                            for part in msg.walk():
+                                content_type = part.get_content_type()
+                                if content_type == "text/plain":
+                                    body = part.get_payload(decode=True).decode()
+                                    emails_content.append({"subject": subject, "body": body})
+                        else:
+                            body = msg.get_payload(decode=True).decode()
+                            emails_content.append({"subject": subject, "body": body})
 
         mail.logout()
-        logging.info("Retrieved %d emails for the last two dates %s", len(emails_content), latest_dates)
+        logging.info("Retrieved %d FAST emails in the last 24 hours", len(emails_content))
         return emails_content
 
     except Exception as e:
@@ -369,56 +383,63 @@ def get_fast_email_content():
 
 def get_vegconomist_content():
     """
-    Retrieves content from Vegconomist's RSS feed for the last two dates.
-    Returns a list of dictionaries with URL, title, and article text.
+    Retrieves content from Vegconomist's RSS feed for the last 24 hours
+    from the most recent article.
     """
     articles = []
-    latest_dates = set()
+    latest_datetime = None
 
     try:
         # Parse the RSS feed
         feed = feedparser.parse('https://vegconomist.com/feed/')
         
-        # Determine the last two dates
-        for entry in feed.entries:
-            pub_date = datetime.fromtimestamp(
-                email.utils.mktime_tz(email.utils.parsedate_tz(entry.published))
-            ).replace(tzinfo=timezone.utc)
-            pub_date_eastern = pub_date.astimezone(EASTERN)
-            latest_dates.add(pub_date_eastern.date())
-
-        latest_dates = sorted(latest_dates, reverse=True)[:2]
-
-        # Process each entry for the last two dates
+        # First pass: find the most recent article timestamp
         for entry in feed.entries:
             try:
                 pub_date = datetime.fromtimestamp(
                     email.utils.mktime_tz(email.utils.parsedate_tz(entry.published))
                 ).replace(tzinfo=timezone.utc)
-                pub_date_eastern = pub_date.astimezone(EASTERN)
+                if latest_datetime is None or pub_date > latest_datetime:
+                    latest_datetime = pub_date
+            except Exception as e:
+                logging.exception("Error processing RSS entry timestamp")
+                continue
+
+        if latest_datetime is None:
+            logging.error("No valid timestamps found in Vegconomist feed")
+            return []
+
+        # Calculate the cutoff time (24 hours before the most recent article)
+        cutoff_time = latest_datetime - timedelta(hours=24)
+        logging.info("Vegconomist: Using articles between %s and %s", cutoff_time, latest_datetime)
+        
+        # Second pass: process each entry within the 24-hour window
+        for entry in feed.entries:
+            try:
+                pub_date = datetime.fromtimestamp(
+                    email.utils.mktime_tz(email.utils.parsedate_tz(entry.published))
+                ).replace(tzinfo=timezone.utc)
                 
-                if pub_date_eastern.date() not in latest_dates:
-                    continue
-                
-                content = entry.content[0].value if 'content' in entry else entry.description
-                soup = BeautifulSoup(content, 'html.parser')
-                
-                for div in soup.find_all('div', class_='wp-caption'):
-                    div.decompose()
-                
-                article_text = soup.get_text(separator='\n', strip=True)
-                
-                articles.append({
-                    "url": entry.link,
-                    "title": entry.title,
-                    "article": article_text
-                })
+                if cutoff_time <= pub_date <= latest_datetime:
+                    content = entry.content[0].value if 'content' in entry else entry.description
+                    soup = BeautifulSoup(content, 'html.parser')
+                    
+                    for div in soup.find_all('div', class_='wp-caption'):
+                        div.decompose()
+                    
+                    article_text = soup.get_text(separator='\n', strip=True)
+                    
+                    articles.append({
+                        "url": entry.link,
+                        "title": entry.title,
+                        "article": article_text
+                    })
                 
             except Exception as e:
                 logging.exception("Error processing RSS entry: %s", entry.link if 'link' in entry else 'unknown')
                 continue
                 
-        logging.info("Extracted content from %d Vegconomist articles for the last two dates %s", len(articles), latest_dates)
+        logging.info("Extracted content from %d Vegconomist articles in the last 24 hours", len(articles))
         return articles
         
     except Exception as e:
@@ -429,7 +450,7 @@ def get_vegconomist_content():
 def get_ea_forum_content():
     """
     Fetches the RSS feed from Effective Altruism Forum and returns a list of dictionaries
-    for all articles published on the two most recent days (according to US Eastern Time).
+    for all articles published in the last 24 hours from the most recent post.
     Each dictionary contains the keys: "url", "title", and "article".
     """
     feed_url = "https://forum.effectivealtruism.org/feed.xml?view=frontpage-rss&karmaThreshold=2"
@@ -448,7 +469,33 @@ def get_ea_forum_content():
         # Extract all <item> elements
         items = channel.findall("item")
         entries = []
+        latest_datetime = None
         
+        # First pass: find the most recent post timestamp
+        for item in items:
+            pub_date_elem = item.find("pubDate")
+            if pub_date_elem is not None and pub_date_elem.text:
+                try:
+                    pub_date_str = pub_date_elem.text.strip()
+                    dt = datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S GMT")
+                    dt = dt.replace(tzinfo=timezone.utc)
+                    dt_est = dt.astimezone(ZoneInfo("America/New_York"))
+                    
+                    if latest_datetime is None or dt_est > latest_datetime:
+                        latest_datetime = dt_est
+                except Exception:
+                    logging.warning("Error parsing date: %s", pub_date_str)
+                    continue
+
+        if latest_datetime is None:
+            logging.error("No valid timestamps found in EA Forum feed")
+            return []
+
+        # Calculate the cutoff time (24 hours before the most recent post)
+        cutoff_time = latest_datetime - timedelta(hours=24)
+        logging.info("EA Forum: Using posts between %s and %s", cutoff_time, latest_datetime)
+
+        # Second pass: collect posts within the 24-hour window
         for item in items:
             title_elem = item.find("title")
             link_elem = item.find("link")
@@ -463,49 +510,23 @@ def get_ea_forum_content():
             article = desc_elem.text.strip() if (desc_elem is not None and desc_elem.text) else ""
             pub_date_str = pub_date_elem.text.strip()
             
-            # Parse pubDate which is in GMT and convert to US Eastern Time.
             try:
                 dt = datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S GMT")
                 dt = dt.replace(tzinfo=timezone.utc)
                 dt_est = dt.astimezone(ZoneInfo("America/New_York"))
+                
+                if cutoff_time <= dt_est <= latest_datetime:
+                    entries.append({
+                        "url": url,
+                        "title": title,
+                        "article": article
+                    })
             except Exception:
                 logging.warning("Error parsing date for item: %s", title)
                 continue
-            
-            entries.append({
-                "url": url,
-                "title": title,
-                "article": article,
-                "pub_date": dt_est  # store the full datetime in US Eastern time for grouping
-            })
-
-        # Group entries by the date (year-month-day) in US Eastern Time.
-        groups = {}
-        for entry in entries:
-            pub_date = entry["pub_date"].date()
-            groups.setdefault(pub_date, []).append(entry)
         
-        # Determine the two most recent unique publication dates.
-        sorted_dates = sorted(groups.keys(), reverse=True)
-        if not sorted_dates:
-            logging.warning("No valid publication dates found in EA Forum feed")
-            return []
-        
-        # Select the latest day and second-latest day (if available)
-        selected_dates = sorted_dates[:2]
-
-        # Build the final list: include items from both selected dates.
-        result = []
-        for date in selected_dates:
-            for entry in groups[date]:
-                result.append({
-                    "url": entry["url"],
-                    "title": entry["title"],
-                    "article": entry["article"]
-                })
-        
-        logging.info("Extracted %d articles from EA Forum for the last two dates %s", len(result), selected_dates)
-        return result
+        logging.info("Extracted %d articles from EA Forum in the last 24 hours", len(entries))
+        return entries
 
     except Exception as e:
         logging.exception("Error retrieving content from EA Forum RSS feed")
