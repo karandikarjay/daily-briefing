@@ -33,7 +33,18 @@ import seaborn
 import sys
 import pandas as pd
 from zoneinfo import ZoneInfo
-from config import API_KEY, GOOGLE_USERNAME, GOOGLE_PASSWORD, AI_MODEL
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Get environment variables
+API_KEY = os.getenv("OPENAI_API_KEY")
+GOOGLE_USERNAME = os.getenv("GOOGLE_USERNAME")
+GOOGLE_PASSWORD = os.getenv("GOOGLE_PASSWORD")
+
+# Define AI model to use
+AI_MODEL = "gpt-4o"
 
 # Configure logging to log to both console and file
 LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "daily_briefing.log")

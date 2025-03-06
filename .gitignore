@@ -8,6 +8,7 @@ __pycache__/
 
 # Configuration
 config.py
+.env
 
 # Images
 *.png
