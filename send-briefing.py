@@ -33,7 +33,7 @@ import seaborn
 import sys
 import pandas as pd
 from zoneinfo import ZoneInfo
-from config import API_KEY, GOOGLE_USERNAME, GOOGLE_PASSWORD
+from config import API_KEY, GOOGLE_USERNAME, GOOGLE_PASSWORD, AI_MODEL
 
 # Configure logging to log to both console and file
 LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "daily_briefing.log")
@@ -864,7 +864,7 @@ if __name__ == "__main__":
             
             response = client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
-                model="o1-mini",
+                model=AI_MODEL,
             )
             bullet_points = response.choices[0].message.content
             
@@ -884,7 +884,7 @@ if __name__ == "__main__":
         
         newsletter_response = client.chat.completions.create(
             messages=[{"role": "user", "content": main_prompt}],
-            model="o1-mini",
+            model=AI_MODEL,
         )
         newsletter = newsletter_response.choices[0].message.content
         
