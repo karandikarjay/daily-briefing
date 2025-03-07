@@ -34,6 +34,9 @@ import sys
 import pandas as pd
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
+import time
+import tiktoken
+import random
 
 # Load environment variables from .env file
 load_dotenv()
@@ -73,6 +76,70 @@ EASTERN = pytz.timezone('America/New_York')
 
 # Get the directory where the script is located
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# OpenAI API rate limiting parameters
+MAX_RETRIES = 5
+INITIAL_RETRY_DELAY = 1  # seconds
+MAX_RETRY_DELAY = 60  # seconds
+MAX_TOKENS_PER_REQUEST = 25000  # Keeping well below the 30000 TPM limit
+TOKEN_BUFFER = 1000  # Buffer to account for response tokens
+
+# Initialize tokenizer for the model
+def num_tokens_from_string(string, model="gpt-4"):
+    """Returns the number of tokens in a text string."""
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+        return len(encoding.encode(string))
+    except Exception as e:
+        logging.warning(f"Error counting tokens: {e}. Using approximate count.")
+        # Fallback to approximate count (1 token ≈ 4 chars for English text)
+        return len(string) // 4
+
+# Function to make API calls with rate limiting and retries
+def call_openai_api_with_backoff(client, messages, model=AI_MODEL, max_tokens=None):
+    """
+    Makes an API call to OpenAI with exponential backoff for retries.
+    Handles rate limits and token limits.
+    """
+    # Count tokens in the request
+    total_tokens = sum(num_tokens_from_string(msg["content"]) for msg in messages)
+    
+    if total_tokens > MAX_TOKENS_PER_REQUEST:
+        logging.warning(f"Request too large ({total_tokens} tokens). This may exceed rate limits.")
+    
+    retry_count = 0
+    while retry_count < MAX_RETRIES:
+        try:
+            # Add jitter to avoid synchronized retries
+            jitter = random.uniform(0.8, 1.2)
+            
+            # Make the API call
+            response = client.chat.completions.create(
+                messages=messages,
+                model=model,
+                max_tokens=max_tokens
+            )
+            return response
+        except Exception as e:
+            retry_count += 1
+            
+            # Check if it's a rate limit error
+            if hasattr(e, 'code') and e.code == 'rate_limit_exceeded':
+                logging.warning(f"Rate limit exceeded. Attempt {retry_count}/{MAX_RETRIES}")
+            else:
+                logging.warning(f"API error: {str(e)}. Attempt {retry_count}/{MAX_RETRIES}")
+            
+            if retry_count >= MAX_RETRIES:
+                logging.error(f"Max retries reached. Giving up.")
+                raise
+            
+            # Calculate backoff with jitter
+            delay = min(INITIAL_RETRY_DELAY * (2 ** (retry_count - 1)) * jitter, MAX_RETRY_DELAY)
+            logging.info(f"Retrying in {delay:.2f} seconds...")
+            time.sleep(delay)
+    
+    # This should not be reached due to the raise in the loop
+    raise Exception("Max retries exceeded without successful API call")
 
 
 def get_gq_sitemap_urls(sitemap_index_url):
@@ -873,10 +940,16 @@ if __name__ == "__main__":
             # Log the prompt
             prompt_logger.info(f"\n{'='*80}\nPROMPT FOR {section['title']}\n{'='*80}\n{prompt}\n{'='*80}\n")
             
-            response = client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model=AI_MODEL,
+            # Count tokens in the prompt
+            token_count = num_tokens_from_string(prompt)
+            logging.info(f"Prompt for {section['title']} has {token_count} tokens")
+            
+            # Make API call with backoff
+            response = call_openai_api_with_backoff(
+                client, 
+                [{"role": "user", "content": prompt}]
             )
+            
             bullet_points = response.choices[0].message.content
             
             # Log the response
@@ -893,9 +966,14 @@ if __name__ == "__main__":
         # Log the main prompt
         prompt_logger.info(f"\n{'='*80}\nMAIN PROMPT\n{'='*80}\n{main_prompt}\n{'='*80}\n")
         
-        newsletter_response = client.chat.completions.create(
-            messages=[{"role": "user", "content": main_prompt}],
-            model=AI_MODEL,
+        # Count tokens in the main prompt
+        token_count = num_tokens_from_string(main_prompt)
+        logging.info(f"Main prompt has {token_count} tokens")
+        
+        # Process the entire newsletter at once
+        newsletter_response = call_openai_api_with_backoff(
+            client,
+            [{"role": "user", "content": main_prompt}]
         )
         newsletter = newsletter_response.choices[0].message.content
         
