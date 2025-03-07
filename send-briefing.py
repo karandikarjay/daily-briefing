@@ -37,6 +37,7 @@ from dotenv import load_dotenv
 import time
 import tiktoken
 import random
+import re
 
 # Load environment variables from .env file
 load_dotenv()
@@ -585,7 +586,7 @@ def get_ea_forum_content():
 
             title = title_elem.text.strip() if title_elem.text else ""
             url = link_elem.text.strip() if link_elem.text else ""
-            article = desc_elem.text.strip() if (desc_elem is not None and desc_elem.text) else ""
+            article_html = desc_elem.text.strip() if (desc_elem is not None and desc_elem.text) else ""
             pub_date_str = pub_date_elem.text.strip()
             
             try:
@@ -594,10 +595,13 @@ def get_ea_forum_content():
                 dt_est = dt.astimezone(ZoneInfo("America/New_York"))
                 
                 if cutoff_time <= dt_est <= latest_datetime:
+                    # Clean HTML content to reduce token usage
+                    article_text = clean_html_content(article_html)
+                    
                     entries.append({
                         "url": url,
                         "title": title,
-                        "article": article
+                        "article": article_text
                     })
             except Exception:
                 logging.warning("Error parsing date for item: %s", title)
@@ -609,6 +613,50 @@ def get_ea_forum_content():
     except Exception as e:
         logging.exception("Error retrieving content from EA Forum RSS feed")
         return []
+
+
+def clean_html_content(html_content):
+    """
+    Cleans HTML content to reduce token usage while preserving meaningful content.
+    Removes unnecessary tags, attributes, and whitespace.
+    """
+    if not html_content:
+        return ""
+    
+    try:
+        # Parse HTML
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Remove unnecessary tags completely
+        for tag in soup.find_all(['style', 'script', 'svg', 'iframe']):
+            tag.decompose()
+        
+        # Remove all class, id, and style attributes
+        for tag in soup.find_all(True):
+            if tag.has_attr('class'):
+                del tag['class']
+            if tag.has_attr('id'):
+                del tag['id']
+            if tag.has_attr('style'):
+                del tag['style']
+        
+        # Get text with minimal formatting
+        text = soup.get_text(separator=' ', strip=True)
+        
+        # Remove excessive whitespace
+        text = re.sub(r'\s+', ' ', text)
+        
+        # Remove "Published on..." prefix that appears in many EA Forum posts
+        text = re.sub(r'^Published on [A-Za-z]+ \d+, \d+ \d+:\d+ [AP]M [A-Z]+\s*', '', text)
+        
+        # Remove "Discuss" suffix that appears in many EA Forum posts
+        text = re.sub(r'\s*Discuss$', '', text)
+        
+        return text.strip()
+    except Exception as e:
+        logging.warning(f"Error cleaning HTML content: {e}")
+        # Fall back to a simpler approach
+        return re.sub(r'<[^>]*>', ' ', html_content).strip()
 
 
 def get_semafor_article(url):
@@ -934,7 +982,11 @@ if __name__ == "__main__":
     # Process each section and append its bullet points to the main prompt
     for section in sections:
         content = get_content(section["title"])
-        prompt = section["prompt"] + f"<content>{content}</content>"
+        
+        # Convert content to a clean string representation to reduce token usage
+        content_str = json.dumps(content)
+        
+        prompt = section["prompt"] + f"<content>{content_str}</content>"
 
         try:
             # Log the prompt
