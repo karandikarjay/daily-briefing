@@ -704,40 +704,40 @@ def get_content(title):
     """
     content = []
     if title == "Alternative Protein":
-        content.append({"source_name": "Green Queen", "articles": get_gq_content()})
-        content.append({"source_name": "Vegconomist", "articles": get_vegconomist_content()})
+        content.append({"source_name": "Green Queen", "content": get_gq_content(), "content_type": "articles"})
+        content.append({"source_name": "Vegconomist", "content": get_vegconomist_content(), "content_type": "articles"})
         return content
     elif title == "Vegan Movement":
-        content = get_fast_email_content()
+        content.append({"source_name": "FAST Email List", "content": get_fast_email_content(), "content_type": "emails"})
         return content
     elif title == "Effective Altruism":
-        content.append({"source_name": "EA Forum", "articles": get_ea_forum_content()})
+        content.append({"source_name": "EA Forum", "content": get_ea_forum_content(), "content_type": "articles"})
         return content
     elif title == "Venture Capital":
-        content.append({"source_name": "Term Sheet", "articles": get_ts_content()})
-        content.append({"source_name": "Axios Pro Rata", "articles": get_axios_article("https://www.axios.com/newsletters/axios-pro-rata")})
+        content.append({"source_name": "Term Sheet", "content": get_ts_content(), "content_type": "articles"})
+        content.append({"source_name": "Axios Pro Rata", "content": get_axios_article("https://www.axios.com/newsletters/axios-pro-rata"), "content_type": "articles"})
         return content
     elif title == "Financial Markets":
-        content.append({"source_name": "Short Squeez", "articles": get_ss_content()})
-        content.append({"source_name": "Axios Markets", "articles": get_axios_article("https://www.axios.com/newsletters/axios-markets")})
-        content.append({"source_name": "Axios Macro", "articles": get_axios_article("https://www.axios.com/newsletters/axios-macro")})
-        content.append({"source_name": "Axios Closer", "articles": get_axios_article("https://www.axios.com/newsletters/axios-closer")})
-        content.append({"source_name": "Semafor Business", "articles": get_semafor_article("https://www.semafor.com/newsletters/business/latest")})
+        content.append({"source_name": "Short Squeez", "content": get_ss_content(), "content_type": "articles"})
+        content.append({"source_name": "Axios Markets", "content": get_axios_article("https://www.axios.com/newsletters/axios-markets"), "content_type": "articles"})
+        content.append({"source_name": "Axios Macro", "content": get_axios_article("https://www.axios.com/newsletters/axios-macro"), "content_type": "articles"})
+        content.append({"source_name": "Axios Closer", "content": get_axios_article("https://www.axios.com/newsletters/axios-closer"), "content_type": "articles"})
+        content.append({"source_name": "Semafor Business", "content": get_semafor_article("https://www.semafor.com/newsletters/business/latest"), "content_type": "articles"})
         return content
     elif title == "AI":
-        content.append({"source_name": "The Rundown AI", "articles": get_rundown_content()})
-        content.append({"source_name": "Axios AI+", "articles": get_axios_article("https://www.axios.com/newsletters/axios-ai-plus")})
+        content.append({"source_name": "The Rundown AI", "content": get_rundown_content(), "content_type": "articles"})
+        content.append({"source_name": "Axios AI+", "content": get_axios_article("https://www.axios.com/newsletters/axios-ai-plus"), "content_type": "articles"})
         return content
     elif title == "Politics":
-        content.append({"source_name": "Axios AM", "articles": get_axios_article("https://www.axios.com/newsletters/axios-am")})
-        content.append({"source_name": "Axios PM", "articles": get_axios_article("https://www.axios.com/newsletters/axios-pm")})
-        content.append({"source_name": "Semafor Flagship", "articles": get_semafor_article("https://www.semafor.com/newsletters/flagship/latest")})
-        content.append({"source_name": "Semafor Principals", "articles": get_semafor_article("https://www.semafor.com/newsletters/principals/latest")})
-        content.append({"source_name": "Semafor Americana", "articles": get_semafor_article("https://www.semafor.com/newsletters/americana/latest")})
+        content.append({"source_name": "Axios AM", "content": get_axios_article("https://www.axios.com/newsletters/axios-am"), "content_type": "articles"})
+        content.append({"source_name": "Axios PM", "content": get_axios_article("https://www.axios.com/newsletters/axios-pm"), "content_type": "articles"})
+        content.append({"source_name": "Semafor Flagship", "content": get_semafor_article("https://www.semafor.com/newsletters/flagship/latest"), "content_type": "articles"})
+        content.append({"source_name": "Semafor Principals", "content": get_semafor_article("https://www.semafor.com/newsletters/principals/latest"), "content_type": "articles"})
+        content.append({"source_name": "Semafor Americana", "content": get_semafor_article("https://www.semafor.com/newsletters/americana/latest"), "content_type": "articles"})
         return content
     elif title == "Climate":
-        content.append({"source_name": "Axios Generate", "articles": get_axios_article("https://www.axios.com/newsletters/axios-generate")})
-        content.append({"source_name": "Semafor Net Zero", "articles": get_semafor_article("https://www.semafor.com/newsletters/netzero/latest")})
+        content.append({"source_name": "Axios Generate", "content": get_axios_article("https://www.axios.com/newsletters/axios-generate"), "content_type": "articles"})
+        content.append({"source_name": "Semafor Net Zero", "content": get_semafor_article("https://www.semafor.com/newsletters/netzero/latest"), "content_type": "articles"})
         return content
     else:
         logging.warning("No content retrieval function defined for title: %s", title)
@@ -860,34 +860,25 @@ if __name__ == "__main__":
         "The output should be in valid JSON format without any surrounding markdown code block markers. "
     )
 
-    # Define specific formats for different sections
-    GENERAL_FORMAT = (
-        "Return the bullet points in JSON format as an array of 3 objects with the keys 'headline', 'one_sentence_summary', 'source_name', and 'url'. " +
-        "The value corresponding to the 'source_name' key should be the name of the source that provided the information for the bullet point. " +
-        "Make sure that the source_name is one of the values corresponding to the key 'source_name' in the data that I have provided. " +
-        "The value corresponding to the 'url' key should be the URL of the source that provided the information for the bullet point. " +
-        "Make sure that the URL is one of the values corresponding to the key 'url' in the data that I have provided. " +
-        COMMON_BULLET_POINT_INSTRUCTIONS
-    )
-
-    EA_FORMAT = (
-        "Return the bullet points in JSON format as an array of 3 objects with the keys 'headline', 'one_sentence_summary', and 'url'. " +
-        "The value corresponding to the 'url' key should be the URL of the source that provided the information for the bullet point. " +
-        "Make sure that the URL is one of the values corresponding to the key 'url' in the data that I have provided. " +
-        COMMON_BULLET_POINT_INSTRUCTIONS
-    )
-
-    EMAIL_FORMAT = (
-        "Return the bullet points in JSON format as an array of 3 objects with the keys 'headline', 'one_sentence_summary', 'sender', and 'subject'. " +
-        "The value corresponding to the 'sender' key should be the name of the sender of the email that provided the information for the bullet point. " +
-        "The value corresponding to the 'subject' key should be the subject of the email that provided the information for the bullet point. " +
-        COMMON_BULLET_POINT_INSTRUCTIONS
+    # Define a unified format for all sections
+    UNIFIED_FORMAT = (
+        "Return the bullet points in JSON format as an array of 3 objects with the keys 'headline' and 'one_sentence_summary'. "
+        "If the content_type is 'articles', also include the keys 'source_name' and 'url'. "
+        "The value corresponding to the 'source_name' key should be the name of the source that provided the information for the bullet point. "
+        "Make sure that the source_name is one of the values corresponding to the key 'source_name' in the data that I have provided. "
+        "The value corresponding to the 'url' key should be the URL of the source that provided the information for the bullet point. "
+        "Make sure that the URL is one of the values corresponding to the key 'url' in the data that I have provided. "
+        "If the content_type is 'emails', also include the keys 'sender' and 'subject'. "
+        "The value corresponding to the 'sender' key should be the name of the sender of the email that provided the information for the bullet point. "
+        "The value corresponding to the 'subject' key should be the subject of the email that provided the information for the bullet point. "
+        + COMMON_BULLET_POINT_INSTRUCTIONS
     )
 
     # Define sections for the daily briefing with their prompts
     BASE_INSTRUCTIONS = (
         "Give me the 3 most important bullet points to be aware of from the content I have provided below. "
-        "Give me the 3 bullet points only without anything before or after. "
+        "Give me the bullet points only without anything before or after. "
+        "Make sure that there are exactly 3 bullet points (no more, no fewer). "
         "Make sure that any claims you make are substantiated by the text of the sources you reference. "
     )
 
@@ -898,7 +889,7 @@ if __name__ == "__main__":
                 "I am an investor in alternative protein startups. I want to be aware of recent developments in the alternative protein industry "
                 "(especially recent funding rounds and new product launches) so that I can invest wisely. "
                 + BASE_INSTRUCTIONS +
-                GENERAL_FORMAT
+                UNIFIED_FORMAT
             )
         },
         {
@@ -908,7 +899,7 @@ if __name__ == "__main__":
                 "(particularly recent accomplishments, new research, and lessons learned) so that I can make better philanthropic decisions when we're pitched by vegan nonprofits. "
                 "Note that Farmed Animal Strategic Team (FAST) is not the name of an organization, but simply the name of an email list where people in the vegan movement share updates. "
                 + BASE_INSTRUCTIONS +
-                EMAIL_FORMAT
+                UNIFIED_FORMAT
             )
         },
         {
@@ -916,7 +907,7 @@ if __name__ == "__main__":
             "prompt": (
                 "I am a philanthropist. I want to be aware of the latest discussions in the effective altruism community so that I can make donations effectively. "
                 + BASE_INSTRUCTIONS +
-                EA_FORMAT
+                UNIFIED_FORMAT
             )
         },
         {
@@ -924,7 +915,7 @@ if __name__ == "__main__":
             "prompt": (
                 "I am a venture capitalist. I want to know what's going on in the venture capital ecosystem, such as any major deals and broader market trends. "
                 + BASE_INSTRUCTIONS +
-                GENERAL_FORMAT
+                UNIFIED_FORMAT
             )
         },
         {
@@ -932,7 +923,7 @@ if __name__ == "__main__":
             "prompt": (
                 "I am an investor at a hedge fund. I want to know what's going on in the financial markets, particularly the performance of the markets as a whole, any significant economic news releases, and any major deals. "
                 + BASE_INSTRUCTIONS +
-                GENERAL_FORMAT
+                UNIFIED_FORMAT
             )
         },
         {
@@ -940,7 +931,7 @@ if __name__ == "__main__":
             "prompt": (
                 "I want to know what new developments are going on in the world of AI tools so that I can increase my personal productivity and I also want to know what the cutting-edge AI companies are doing since they are likely to have a significant impact on the world. "
                 + BASE_INSTRUCTIONS +
-                GENERAL_FORMAT
+                UNIFIED_FORMAT
             )
         },
         {
@@ -948,7 +939,7 @@ if __name__ == "__main__":
             "prompt": (
                 "I want to know what's going on in the world of politics so that I can be well-informed in case any recent developments come up in conversation. "
                 + BASE_INSTRUCTIONS +
-                GENERAL_FORMAT
+                UNIFIED_FORMAT
             )
         },
         {
@@ -957,7 +948,7 @@ if __name__ == "__main__":
                 "I want to know what's going on with regard to climate change, including how startups and venture capitalists are addressing the issue, "
                 "how policymakers are responding, what climate philanthropists are doing, what strategies the environmental movement is pursuing, and any updates to climate science. "
                 + BASE_INSTRUCTIONS +
-                GENERAL_FORMAT
+                UNIFIED_FORMAT
             )
         }
     ]
