@@ -626,7 +626,7 @@ def get_vegconomist_content():
 def get_ea_forum_content():
     """
     Fetches the RSS feed from Effective Altruism Forum and returns a list of dictionaries
-    for all articles published in the last 24 hours from the most recent post.
+    for all articles published in the last 48 hours from the most recent post.
     Each dictionary contains the keys: "url", "title", and "article".
     """
     feed_url = "https://forum.effectivealtruism.org/feed.xml?view=frontpage-rss&karmaThreshold=2"
@@ -667,11 +667,11 @@ def get_ea_forum_content():
             logging.error("No valid timestamps found in EA Forum feed")
             return []
 
-        # Calculate the cutoff time (24 hours before the most recent post)
-        cutoff_time = latest_datetime - timedelta(hours=24)
+        # Calculate the cutoff time (48 hours before the most recent post)
+        cutoff_time = latest_datetime - timedelta(hours=48)
         logging.info("EA Forum: Using posts between %s and %s", cutoff_time, latest_datetime)
 
-        # Second pass: collect posts within the 24-hour window
+        # Second pass: collect posts within the 48-hour window
         for item in items:
             title_elem = item.find("title")
             link_elem = item.find("link")
@@ -704,7 +704,7 @@ def get_ea_forum_content():
                 logging.warning("Error parsing date for item: %s", title)
                 continue
         
-        logging.info("Extracted %d articles from EA Forum in the last 24 hours", len(entries))
+        logging.info("Extracted %d articles from EA Forum in the last 48 hours", len(entries))
         return entries
 
     except Exception as e:
