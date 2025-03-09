@@ -66,6 +66,13 @@ logging.basicConfig(
 # Create a custom logger for prompts and responses
 prompt_logger = logging.getLogger('prompts')
 prompt_logger.setLevel(logging.INFO)
+# Create a separate log file for prompts and LLM outputs
+PROMPT_LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompt_response.log")
+prompt_file_handler = logging.FileHandler(PROMPT_LOG_FILE, encoding='utf-8')
+prompt_file_handler.setFormatter(logging.Formatter('%(asctime)s\n%(message)s\n'))
+prompt_logger.addHandler(prompt_file_handler)
+# Prevent prompt logs from propagating to the root logger
+prompt_logger.propagate = False
 
 # Define global headers for HTTP requests
 HEADERS = {
