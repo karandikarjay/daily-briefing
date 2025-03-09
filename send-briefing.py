@@ -946,6 +946,70 @@ def send_email(body, send_to_everyone=False):
         logging.exception("Error sending email")
 
 
+# Function to generate HTML email from template and bullet points
+def generate_email_html(template, sections_data):
+    """
+    Generates HTML for the email newsletter using the template and bullet points data.
+    
+    Args:
+        template (str): HTML template string
+        sections_data (dict): Dictionary mapping section titles to their bullet points
+        
+    Returns:
+        str: Generated HTML content for the email
+    """
+    # Create a copy of the template to modify
+    html = template
+    
+    # Process each section
+    for section_title, bullet_points in sections_data.items():
+        # Skip if no bullet points
+        if not bullet_points or len(bullet_points) == 0:
+            continue
+            
+        # Make section title lowercase and replace spaces with underscores for use in placeholders
+        section_key = section_title.lower().replace(' ', '_')
+        
+        # Replace placeholders for each bullet point that exists
+        for i, bullet in enumerate(bullet_points, 1):
+            if i > 3:  # Only process up to 3 bullet points
+                break
+                
+            # Replace headline and summary
+            html = html.replace(f"{{{section_key}_headline_{i}}}", bullet.get("headline", ""))
+            html = html.replace(f"{{{section_key}_one_sentence__summary_{i}}}", bullet.get("one_sentence_summary", ""))
+            
+            # Replace source-specific placeholders
+            if "source_name" in bullet and "url" in bullet:
+                # For article-type content
+                html = html.replace(f"{{{section_key}_source_name_{i}}}", bullet.get("source_name", ""))
+                html = html.replace(f"{{{section_key}_url_{i}}}", bullet.get("url", "#"))
+            elif "sender" in bullet and "subject" in bullet:
+                # For email-type content
+                html = html.replace(f"{{{section_key}_sender_{i}}}", bullet.get("sender", ""))
+                html = html.replace(f"{{{section_key}_subject_{i}}}", bullet.get("subject", ""))
+        
+        # Remove list items for missing bullet points (if fewer than 3 were returned)
+        for i in range(len(bullet_points) + 1, 4):  # Start from the first missing index up to 3
+            # Define regex patterns to find list items with the missing placeholders
+            # The patterns look for <li> tags containing the specific placeholder patterns
+            if "source_name" in bullet_points[0] and "url" in bullet_points[0]:
+                # For article-type sections
+                pattern = rf'<li><strong>\{{{section_key}_headline_{i}\}}:</strong> \{{{section_key}_one_sentence__summary_{i}\}} <a href="\{{{section_key}_url_{i}\}}">\{{{section_key}_source_name_{i}\}}</a></li>'
+            elif "sender" in bullet_points[0] and "subject" in bullet_points[0]:
+                # For email-type sections
+                pattern = rf'<li><strong>\{{{section_key}_headline_{i}\}}:</strong> \{{{section_key}_one_sentence__summary_{i}\}} \(Email from \{{{section_key}_sender_{i}\}} with subject "\{{{section_key}_subject_{i}\}}"\)</li>'
+            else:
+                # For sections with unknown structure, use a more generic pattern
+                pattern = rf'<li><strong>\{{{section_key}_headline_{i}\}}:.*?</li>'
+                
+            # Use re.sub to remove the list item containing the placeholders
+            import re
+            html = re.sub(pattern, '', html)
+    
+    return html
+
+
 if __name__ == "__main__":
     # Check for the --send-to-everyone flag
     send_to_everyone = "--send-to-everyone" in sys.argv
@@ -1059,15 +1123,12 @@ if __name__ == "__main__":
         logging.exception("Error reading HTML template")
         raise
 
-    main_prompt = ("Write a daily briefing. I have provided the sections that I want below. "
-                   "Give the response in HTML format that would be suitable for an email newsletter. "
-                   "The output should be in valid HTML format without any surrounding markdown code block markers. I have provided an HTML template for the newsletter below. "
-                   "Do not include a copyright notice at the bottom.\n"
-                   f"<template>{template}</template>")
-
     client = OpenAI(api_key=API_KEY)
+    
+    # Dictionary to store bullet points for each section
+    sections_data = {}
 
-    # Process each section and append its bullet points to the main prompt
+    # Process each section and gather its bullet points
     for section in sections:
         content = get_content(section["title"])
         
@@ -1113,40 +1174,28 @@ if __name__ == "__main__":
             
             # Convert Pydantic models to dictionaries before serializing to JSON
             serializable_bullet_points = [bullet.model_dump() for bullet in response.choices[0].message.parsed.bullet_points]
-            bullet_points = json.dumps(serializable_bullet_points)
+            # Store the bullet points in the sections_data dictionary
+            sections_data[section["title"]] = serializable_bullet_points
             
-            # Log the response
-            prompt_logger.info(f"\n{'='*80}\nRESPONSE FOR {section['title']}\n{'='*80}\n{bullet_points}\n{'='*80}\n")
+            # Log the response for debugging
+            bullet_points_json = json.dumps(serializable_bullet_points)
+            prompt_logger.info(f"\n{'='*80}\nRESPONSE FOR {section['title']}\n{'='*80}\n{bullet_points_json}\n{'='*80}\n")
             
         except Exception as e:
             logging.exception("Error obtaining response for section: %s", section["title"])
-            bullet_points = "[]"  # Empty array as fallback
-        
-        title = section["title"]
-        main_prompt += f"\n<section><title>{title}</title><bullet_points>{bullet_points}</bullet_points></section>"
-
+            sections_data[section["title"]] = []  # Empty array as fallback
+    
     try:
-        # Log the main prompt
-        prompt_logger.info(f"\n{'='*80}\nMAIN PROMPT\n{'='*80}\n{main_prompt}\n{'='*80}\n")
+        # Generate the HTML for the newsletter using the template and bullet points
+        newsletter = generate_email_html(template, sections_data)
         
-        # Count tokens in the main prompt
-        token_count = num_tokens_from_string(main_prompt)
-        logging.info(f"Main prompt has {token_count} tokens")
-        
-        # Process the entire newsletter at once using the backoff function
-        newsletter_response = call_openai_api_with_backoff(
-            client,
-            [{"role": "user", "content": main_prompt}],
-            model=AI_MODEL
-        )
-        newsletter = newsletter_response.choices[0].message.content
-        
-        # Log the newsletter response
-        prompt_logger.info(f"\n{'='*80}\nNEWSLETTER RESPONSE\n{'='*80}\n{newsletter}\n{'='*80}\n")
+        # Log the generated newsletter for debugging
+        prompt_logger.info(f"\n{'='*80}\nGENERATED NEWSLETTER\n{'='*80}\n{newsletter}\n{'='*80}\n")
         
     except Exception as e:
-        logging.exception("Error generating final newsletter")
-        newsletter = ""
+        logging.exception("Error generating newsletter HTML")
+        # Fallback to a simple HTML message
+        newsletter = "<html><body><h1>Daily Briefing</h1><p>There was an error generating the newsletter content.</p></body></html>"
 
     # Create financial charts and send the email newsletter
     create_charts()
