@@ -38,6 +38,8 @@ import time
 import tiktoken
 import random
 import re
+from typing import List, Optional
+from pydantic import BaseModel
 
 # Load environment variables from .env file
 load_dotenv()
@@ -96,11 +98,37 @@ def num_tokens_from_string(string, model="gpt-4"):
         # Fallback to approximate count (1 token ≈ 4 chars for English text)
         return len(string) // 4
 
+# Define the schema for the bullet points using Pydantic models
+class ArticleBulletPoint(BaseModel):
+    headline: str
+    one_sentence_summary: str
+    source_name: str
+    url: str
+
+class EmailBulletPoint(BaseModel):
+    headline: str
+    one_sentence_summary: str
+    sender: str
+    subject: str
+
+class BulletPointResponse(BaseModel):
+    bullet_points: List[ArticleBulletPoint] | List[EmailBulletPoint]
+
 # Function to make API calls with rate limiting and retries
-def call_openai_api_with_backoff(client, messages, model=AI_MODEL, max_tokens=None):
+def call_openai_api_with_backoff(client, messages, model=AI_MODEL, max_tokens=None, response_format=None):
     """
     Makes an API call to OpenAI with exponential backoff for retries.
     Handles rate limits and token limits.
+    
+    Args:
+        client: The OpenAI client instance
+        messages: List of message dictionaries to send
+        model: The model to use (default: AI_MODEL)
+        max_tokens: Maximum tokens for the response (optional)
+        response_format: Format specification for the response (optional)
+        
+    Returns:
+        The API response
     """
     # Count tokens in the request
     total_tokens = sum(num_tokens_from_string(msg["content"]) for msg in messages)
@@ -114,12 +142,21 @@ def call_openai_api_with_backoff(client, messages, model=AI_MODEL, max_tokens=No
             # Add jitter to avoid synchronized retries
             jitter = random.uniform(0.8, 1.2)
             
+            # Prepare the API call parameters
+            params = {
+                "messages": messages,
+                "model": model
+            }
+            
+            # Add optional parameters if provided
+            if max_tokens is not None:
+                params["max_tokens"] = max_tokens
+                
+            if response_format is not None:
+                params["response_format"] = response_format
+            
             # Make the API call
-            response = client.chat.completions.create(
-                messages=messages,
-                model=model,
-                max_tokens=max_tokens
-            )
+            response = client.chat.completions.create(**params)
             return response
         except Exception as e:
             retry_count += 1
@@ -142,6 +179,59 @@ def call_openai_api_with_backoff(client, messages, model=AI_MODEL, max_tokens=No
     # This should not be reached due to the raise in the loop
     raise Exception("Max retries exceeded without successful API call")
 
+def call_openai_parse_with_backoff(client, messages, response_model, model=AI_MODEL):
+    """
+    Makes a parse API call to OpenAI with exponential backoff for retries.
+    This is specifically for structured data parsing using client.beta.chat.completions.parse
+    
+    Args:
+        client: The OpenAI client instance
+        messages: List of message dictionaries to send
+        response_model: Pydantic model to parse the response into
+        model: The model to use (default: AI_MODEL)
+        
+    Returns:
+        The parsed API response
+    """
+    # Count tokens in the request
+    total_tokens = sum(num_tokens_from_string(msg["content"]) for msg in messages)
+    
+    if total_tokens > MAX_TOKENS_PER_REQUEST:
+        logging.warning(f"Request too large ({total_tokens} tokens). This may exceed rate limits.")
+    
+    retry_count = 0
+    while retry_count < MAX_RETRIES:
+        try:
+            # Add jitter to avoid synchronized retries
+            jitter = random.uniform(0.8, 1.2)
+            
+            # Make the parse API call
+            response = client.beta.chat.completions.parse(
+                model=model,
+                messages=messages,
+                response_format=response_model
+            )
+            return response
+        except Exception as e:
+            retry_count += 1
+            
+            # Check if it's a rate limit error
+            if hasattr(e, 'code') and e.code == 'rate_limit_exceeded':
+                logging.warning(f"Rate limit exceeded. Attempt {retry_count}/{MAX_RETRIES}")
+            else:
+                logging.warning(f"API error: {str(e)}. Attempt {retry_count}/{MAX_RETRIES}")
+            
+            if retry_count >= MAX_RETRIES:
+                logging.error(f"Max retries reached. Giving up.")
+                raise
+            
+            # Calculate backoff with jitter
+            delay = min(INITIAL_RETRY_DELAY * (2 ** (retry_count - 1)) * jitter, MAX_RETRY_DELAY)
+            logging.info(f"Retrying in {delay:.2f} seconds...")
+            time.sleep(delay)
+    
+    # This should not be reached due to the raise in the loop
+    raise Exception("Max retries exceeded without successful API call")
 
 def get_gq_sitemap_urls(sitemap_index_url):
     """
@@ -888,9 +978,9 @@ if __name__ == "__main__":
             "prompt": (
                 "I am an investor in alternative protein startups. I want to be aware of recent developments in the alternative protein industry "
                 "(especially recent funding rounds and new product launches) so that I can invest wisely. "
-                + BASE_INSTRUCTIONS +
-                UNIFIED_FORMAT
-            )
+                + BASE_INSTRUCTIONS
+            ),
+            "content_type": "articles"
         },
         {
             "title": "Vegan Movement",
@@ -898,58 +988,58 @@ if __name__ == "__main__":
                 "I am a philanthropist who donates to the vegan movement. I want to stay up to date on what's going on in the vegan movement "
                 "(particularly recent accomplishments, new research, and lessons learned) so that I can make better philanthropic decisions when we're pitched by vegan nonprofits. "
                 "Note that Farmed Animal Strategic Team (FAST) is not the name of an organization, but simply the name of an email list where people in the vegan movement share updates. "
-                + BASE_INSTRUCTIONS +
-                UNIFIED_FORMAT
-            )
+                + BASE_INSTRUCTIONS
+            ),
+            "content_type": "emails"
         },
         {
             "title": "Effective Altruism",
             "prompt": (
                 "I am a philanthropist. I want to be aware of the latest discussions in the effective altruism community so that I can make donations effectively. "
-                + BASE_INSTRUCTIONS +
-                UNIFIED_FORMAT
-            )
+                + BASE_INSTRUCTIONS
+            ),
+            "content_type": "articles"
         },
         {
             "title": "Venture Capital",
             "prompt": (
                 "I am a venture capitalist. I want to know what's going on in the venture capital ecosystem, such as any major deals and broader market trends. "
-                + BASE_INSTRUCTIONS +
-                UNIFIED_FORMAT
-            )
+                + BASE_INSTRUCTIONS
+            ),
+            "content_type": "articles"
         },
         {
             "title": "Financial Markets",
             "prompt": (
                 "I am an investor at a hedge fund. I want to know what's going on in the financial markets, particularly the performance of the markets as a whole, any significant economic news releases, and any major deals. "
-                + BASE_INSTRUCTIONS +
-                UNIFIED_FORMAT
-            )
+                + BASE_INSTRUCTIONS
+            ),
+            "content_type": "articles"
         },
         {
             "title": "AI",
             "prompt": (
                 "I want to know what new developments are going on in the world of AI tools so that I can increase my personal productivity and I also want to know what the cutting-edge AI companies are doing since they are likely to have a significant impact on the world. "
-                + BASE_INSTRUCTIONS +
-                UNIFIED_FORMAT
-            )
+                + BASE_INSTRUCTIONS
+            ),
+            "content_type": "articles"
         },
         {
             "title": "Politics",
             "prompt": (
                 "I want to know what's going on in the world of politics so that I can be well-informed in case any recent developments come up in conversation. "
-                + BASE_INSTRUCTIONS +
-                UNIFIED_FORMAT
-            )
+                + BASE_INSTRUCTIONS
+            ),
+            "content_type": "articles"
         },
         {
             "title": "Climate",
             "prompt": (
                 "I want to know what's going on with regard to climate change, including how startups and venture capitalists are addressing the issue, "
                 "how policymakers are responding, what climate philanthropists are doing, what strategies the environmental movement is pursuing, and any updates to climate science. "
-                + BASE_INSTRUCTIONS +
-                UNIFIED_FORMAT
-            )
+                + BASE_INSTRUCTIONS
+            ),
+            "content_type": "articles"
         }
     ]
 
@@ -977,30 +1067,53 @@ if __name__ == "__main__":
         # Convert content to a clean string representation to reduce token usage
         content_str = json.dumps(content)
         
-        prompt = section["prompt"] + f"<content>{content_str}</content>"
+        prompt = section["prompt"]
+        user_content = f"<content>{content_str}</content>"
 
         try:
             # Log the prompt
-            prompt_logger.info(f"\n{'='*80}\nPROMPT FOR {section['title']}\n{'='*80}\n{prompt}\n{'='*80}\n")
+            prompt_logger.info(f"\n{'='*80}\nPROMPT FOR {section['title']}\n{'='*80}\nSYSTEM: {prompt}\n\nUSER: {user_content}\n{'='*80}\n")
             
-            # Count tokens in the prompt
-            token_count = num_tokens_from_string(prompt)
+            # Count tokens in the prompt including the XML tags
+            token_count = num_tokens_from_string(prompt) + num_tokens_from_string(user_content)
             logging.info(f"Prompt for {section['title']} has {token_count} tokens")
             
-            # Make API call with backoff
-            response = call_openai_api_with_backoff(
-                client, 
-                [{"role": "user", "content": prompt}]
+            # Prepare messages for the API call
+            messages = [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": user_content}
+            ]
+            
+            # Create the appropriate Pydantic response model based on content type
+            if section["content_type"] == "articles":
+                # Create a new class with proper type annotation for bullet_points
+                class ArticleBulletPointsResponse(BaseModel):
+                    bullet_points: List[ArticleBulletPoint]
+                response_model = ArticleBulletPointsResponse
+            else:  # for emails
+                # Create a new class with proper type annotation for bullet_points
+                class EmailBulletPointsResponse(BaseModel):
+                    bullet_points: List[EmailBulletPoint]
+                response_model = EmailBulletPointsResponse
+            
+            # Make API call with structured output using call_openai_parse_with_backoff
+            response = call_openai_parse_with_backoff(
+                client,
+                messages,
+                response_model,
+                model=AI_MODEL
             )
             
-            bullet_points = response.choices[0].message.content
+            # Convert Pydantic models to dictionaries before serializing to JSON
+            serializable_bullet_points = [bullet.model_dump() for bullet in response.choices[0].message.parsed.bullet_points]
+            bullet_points = json.dumps(serializable_bullet_points)
             
             # Log the response
             prompt_logger.info(f"\n{'='*80}\nRESPONSE FOR {section['title']}\n{'='*80}\n{bullet_points}\n{'='*80}\n")
             
         except Exception as e:
             logging.exception("Error obtaining response for section: %s", section["title"])
-            bullet_points = ""
+            bullet_points = "[]"  # Empty array as fallback
         
         title = section["title"]
         main_prompt += f"\n<section><title>{title}</title><bullet_points>{bullet_points}</bullet_points></section>"
@@ -1013,10 +1126,11 @@ if __name__ == "__main__":
         token_count = num_tokens_from_string(main_prompt)
         logging.info(f"Main prompt has {token_count} tokens")
         
-        # Process the entire newsletter at once
+        # Process the entire newsletter at once using the backoff function
         newsletter_response = call_openai_api_with_backoff(
             client,
-            [{"role": "user", "content": main_prompt}]
+            [{"role": "user", "content": main_prompt}],
+            model=AI_MODEL
         )
         newsletter = newsletter_response.choices[0].message.content
         
