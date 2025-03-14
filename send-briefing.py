@@ -48,6 +48,9 @@ load_dotenv()
 API_KEY = os.getenv("OPENAI_API_KEY")
 GOOGLE_USERNAME = os.getenv("GOOGLE_USERNAME")
 GOOGLE_PASSWORD = os.getenv("GOOGLE_PASSWORD")
+# Parse recipient emails into a list (split by commas)
+recipient_emails_str = os.getenv("RECIPIENT_EMAILS", "")
+RECIPIENT_EMAILS = [email.strip() for email in recipient_emails_str.split(",")] if recipient_emails_str else []
 
 # Define AI model to use
 AI_MODEL = "gpt-4o"
@@ -906,8 +909,8 @@ def send_email(body, send_to_everyone=False):
     sender_email = GOOGLE_USERNAME
     receiver_emails = [GOOGLE_USERNAME]
 
-    if send_to_everyone:
-        receiver_emails.append("robert@alwyncapital.com")
+    if send_to_everyone and RECIPIENT_EMAILS:
+        receiver_emails.extend(RECIPIENT_EMAILS)
 
     message = MIMEMultipart("related")
     message["Subject"] = "Daily Briefing"
