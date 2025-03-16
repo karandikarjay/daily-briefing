@@ -675,6 +675,7 @@ def get_ea_forum_content():
         logging.info("EA Forum: Using posts between %s and %s", cutoff_time, latest_datetime)
 
         # Second pass: collect posts within the 48-hour window
+        articles_with_dates = []
         for item in items:
             title_elem = item.find("title")
             link_elem = item.find("link")
@@ -698,16 +699,37 @@ def get_ea_forum_content():
                     # Clean HTML content to reduce token usage
                     article_text = clean_html_content(article_html)
                     
-                    entries.append({
+                    article_entry = {
                         "url": url,
                         "title": title,
-                        "article": article_text
-                    })
+                        "article": article_text,
+                        "datetime": dt_est  # Store the datetime for sorting
+                    }
+                    articles_with_dates.append(article_entry)
             except Exception:
                 logging.warning("Error parsing date for item: %s", title)
                 continue
         
-        logging.info("Extracted %d articles from EA Forum in the last 48 hours", len(entries))
+        # Sort articles by date (oldest first)
+        articles_with_dates.sort(key=lambda x: x["datetime"])
+        
+        # Create entries list without the datetime field
+        entries = [{k: v for k, v in article.items() if k != "datetime"} for article in articles_with_dates]
+        
+        # Check token count and remove oldest articles if needed
+        total_tokens = sum(num_tokens_from_string(json.dumps(entry)) for entry in entries)
+        logging.info(f"EA Forum: Initial collection has {len(entries)} articles with {total_tokens} tokens")
+        
+        while total_tokens > 20000 and len(entries) > 1:
+            # Remove the oldest article (first in the list since we sorted by date)
+            removed_article = entries.pop(0)
+            logging.info(f"EA Forum: Removed article '{removed_article['title']}' to reduce token count")
+            
+            # Recalculate token count
+            total_tokens = sum(num_tokens_from_string(json.dumps(entry)) for entry in entries)
+            logging.info(f"EA Forum: After removal, {len(entries)} articles with {total_tokens} tokens remain")
+        
+        logging.info("Extracted %d articles from EA Forum in the last 48 hours (after token limit applied)", len(entries))
         return entries
 
     except Exception as e:
