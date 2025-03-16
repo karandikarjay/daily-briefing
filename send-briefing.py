@@ -930,14 +930,17 @@ def send_email(body, send_to_everyone=False):
     """
     sender_email = GOOGLE_USERNAME
     receiver_emails = [GOOGLE_USERNAME]
+    bcc_emails = []
 
     if send_to_everyone and RECIPIENT_EMAILS:
-        receiver_emails.extend(RECIPIENT_EMAILS)
+        bcc_emails = RECIPIENT_EMAILS
 
     message = MIMEMultipart("related")
     message["Subject"] = "Daily Briefing"
     message["From"] = sender_email
-    message["To"] = ", ".join(receiver_emails)
+    message["To"] = sender_email
+    if bcc_emails:
+        message["Bcc"] = ", ".join(bcc_emails)
 
     # Attach the HTML content
     part = MIMEText(body, "html")
@@ -965,8 +968,14 @@ def send_email(body, send_to_everyone=False):
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()  # Secure the connection
             server.login(sender_email, GOOGLE_PASSWORD)
-            server.sendmail(sender_email, receiver_emails, message.as_string())
-        logging.info("Email sent successfully to %s", ", ".join(receiver_emails))
+            # Include all recipients (To + Bcc) in the sendmail recipients list
+            all_recipients = [sender_email] + bcc_emails
+            server.sendmail(sender_email, all_recipients, message.as_string())
+        
+        if bcc_emails:
+            logging.info("Email sent successfully to %s and BCC to %d recipients", sender_email, len(bcc_emails))
+        else:
+            logging.info("Email sent successfully to %s", sender_email)
     except Exception as e:
         logging.exception("Error sending email")
 
