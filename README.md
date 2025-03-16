@@ -43,6 +43,7 @@ The Daily Briefing application collects content from multiple sources, processes
 
 ## Project Structure
 
+```
 daily-briefing/
 ├── charts/                  # Financial chart generation
 │   ├── __init__.py
@@ -69,6 +70,7 @@ daily-briefing/
 ├── main.py                  # Main application entry point
 ├── template.html            # Email template
 └── README.md                # This file
+```
 
 ## Requirements
 
@@ -80,17 +82,23 @@ daily-briefing/
 ## Installation
 
 1. Clone the repository:
+   ```
    git clone https://github.com/yourusername/daily-briefing.git
    cd daily-briefing
+   ```
 
 2. Install required packages:
+   ```
    pip install -r requirements.txt
+   ```
 
 3. Create a `.env` file with the following variables:
+   ```
    OPENAI_API_KEY=your_openai_api_key
    GOOGLE_USERNAME=your_gmail_address
    GOOGLE_PASSWORD=your_gmail_app_password
    RECIPIENT_EMAILS=email1@example.com,email2@example.com
+   ```
 
    Note: For Gmail, you'll need to use an App Password rather than your regular password. See [Google's documentation](https://support.google.com/accounts/answer/185833) for details.
 
@@ -100,13 +108,17 @@ daily-briefing/
 
 Run the script to generate and send the daily briefing to yourself:
 
+```
 python main.py
+```
 
 ### Send to All Recipients
 
 To send the briefing to all email addresses in your RECIPIENT_EMAILS list:
 
+```
 python main.py --send-to-everyone
+```
 
 ## Configuration
 
