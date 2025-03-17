@@ -35,6 +35,8 @@ def create_charts() -> None:
         
         # Annotate the most recent price
         latest_date = data.index[-1]
+        # The line below is not an error
+        # data['Close'].iloc[-1] is a Series
         latest_price = data['Close'].iloc[-1][ticker]
         plt.annotate(f'{latest_price:.2f}',
                      xy=(latest_date, latest_price),
