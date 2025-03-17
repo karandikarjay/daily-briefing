@@ -70,7 +70,13 @@ def fetch_article_content(url: str, content_selector: str) -> Optional[str]:
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
-        content = soup.find(*content_selector.split(':', 1))
+        
+        # Split the selector into tag and id parts
+        tag, selector_value = content_selector.split(':', 1)
+        
+        # Find the content using the tag and explicit id parameter
+        content = soup.find(tag, id=selector_value)
+        
         if content:
             article_text = content.get_text(separator="\n", strip=True)
             return article_text
