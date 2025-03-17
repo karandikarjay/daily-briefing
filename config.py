@@ -196,7 +196,6 @@ GREEN_QUEEN_SITEMAP_URL = "https://www.greenqueen.com.hk/sitemap_index.xml"
 VEGCONOMIST_RSS_URL = "https://vegconomist.com/feed/"
 EA_FORUM_RSS_URL = "https://forum.effectivealtruism.org/feed.xml?view=frontpage-rss&karmaThreshold=2"
 RUNDOWN_RSS_URL = "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml"
-SHORT_SQUEEZ_RSS_URL = "https://rss.beehiiv.com/feeds/uuk5kg8PFC.xml"
 TERM_SHEET_URL = "https://content.fortune.com/newsletter/termsheet/"
 FAST_EMAIL = "fast-farm-animal-strategic-team@googlegroups.com"
 

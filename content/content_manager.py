@@ -8,7 +8,7 @@ based on the section title.
 import logging
 from typing import List, Dict, Any
 from .rss_content import (
-    get_rundown_content, get_ss_content, get_ts_content, 
+    get_rundown_content, get_ts_content, 
     get_vegconomist_content, get_ea_forum_content
 )
 from .web_content import get_axios_article, get_semafor_article
@@ -43,7 +43,6 @@ def get_content(title: str) -> List[Dict[str, Any]]:
         content.append({"source_name": "Axios Pro Rata", "content": get_axios_article(AXIOS_NEWSLETTERS["Pro Rata"]), "content_type": "articles"})
         return content
     elif title == "Financial Markets":
-        content.append({"source_name": "Short Squeez", "content": get_ss_content(), "content_type": "articles"})
         content.append({"source_name": "Axios Markets", "content": get_axios_article(AXIOS_NEWSLETTERS["Markets"]), "content_type": "articles"})
         content.append({"source_name": "Axios Macro", "content": get_axios_article(AXIOS_NEWSLETTERS["Macro"]), "content_type": "articles"})
         content.append({"source_name": "Axios Closer", "content": get_axios_article(AXIOS_NEWSLETTERS["Closer"]), "content_type": "articles"})

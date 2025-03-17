@@ -18,7 +18,7 @@ The Daily Briefing application collects content from multiple sources, processes
 ## Features
 
 - **Content Aggregation**: Collects content from multiple sources including:
-  - RSS feeds (Vegconomist, EA Forum, The Rundown, Short Squeez)
+  - RSS feeds (Vegconomist, EA Forum, The Rundown)
   - Website sitemaps (Green Queen)
   - Email lists (FAST)
   - Web scraping (Axios, Semafor, Term Sheet)
