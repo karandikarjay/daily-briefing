@@ -26,6 +26,16 @@ def generate_email_html(template: str, sections_data: dict) -> str:
     for section_title, bullet_points in sections_data.items():
         # Skip if no bullet points
         if not bullet_points or len(bullet_points) == 0:
+            # Make section title lowercase and replace spaces with underscores for use in placeholders
+            section_key = section_title.lower().replace(' ', '_')
+            
+            # Remove all list items for this section since there are no bullet points
+            for i in range(1, 4):  # Handle all 3 possible bullet points
+                # Define generic pattern to find list items with the section's placeholders
+                pattern = r'<li><strong>{' + section_key + f'_headline_{i}' + r'}:.*?</li>'
+                # Use re.sub to remove the list item containing the placeholders
+                html = re.sub(pattern, '', html)
+            
             continue
             
         # Make section title lowercase and replace spaces with underscores for use in placeholders
@@ -38,7 +48,7 @@ def generate_email_html(template: str, sections_data: dict) -> str:
                 
             # Replace headline and summary
             html = html.replace(f"{{{section_key}_headline_{i}}}", bullet.get("headline", ""))
-            html = html.replace(f"{{{section_key}_one_sentence__summary_{i}}}", bullet.get("one_sentence_summary", ""))
+            html = html.replace(f"{{{section_key}_one_sentence_summary_{i}}}", bullet.get("one_sentence_summary", ""))
             
             # Replace source-specific placeholders
             if "source_name" in bullet and "url" in bullet:
@@ -54,15 +64,15 @@ def generate_email_html(template: str, sections_data: dict) -> str:
         for i in range(len(bullet_points) + 1, 4):  # Start from the first missing index up to 3
             # Define regex patterns to find list items with the missing placeholders
             # The patterns look for <li> tags containing the specific placeholder patterns
-            if "source_name" in bullet_points[0] and "url" in bullet_points[0]:
+            if bullet_points and "source_name" in bullet_points[0] and "url" in bullet_points[0]:
                 # For article-type sections
-                pattern = rf'<li><strong>\{{{section_key}_headline_{i}\}}:</strong> \{{{section_key}_one_sentence__summary_{i}\}} <a href="\{{{section_key}_url_{i}\}}">\{{{section_key}_source_name_{i}\}}</a></li>'
-            elif "sender" in bullet_points[0] and "subject" in bullet_points[0]:
+                pattern = r'<li><strong>{' + section_key + f'_headline_{i}' + r'}:</strong> {' + section_key + f'_one_sentence_summary_{i}' + r'} <a href="{' + section_key + f'_url_{i}' + r'}">{' + section_key + f'_source_name_{i}' + r'}</a></li>'
+            elif bullet_points and "sender" in bullet_points[0] and "subject" in bullet_points[0]:
                 # For email-type sections
-                pattern = rf'<li><strong>\{{{section_key}_headline_{i}\}}:</strong> \{{{section_key}_one_sentence__summary_{i}\}} \(Email from \{{{section_key}_sender_{i}\}} with subject "\{{{section_key}_subject_{i}\}}"\)</li>'
+                pattern = r'<li><strong>{' + section_key + f'_headline_{i}' + r'}:</strong> {' + section_key + f'_one_sentence_summary_{i}' + r'} \(Email from {' + section_key + f'_sender_{i}' + r'} with subject "{' + section_key + f'_subject_{i}' + r'}"\)</li>'
             else:
                 # For sections with unknown structure, use a more generic pattern
-                pattern = rf'<li><strong>\{{{section_key}_headline_{i}\}}:.*?</li>'
+                pattern = r'<li><strong>{' + section_key + f'_headline_{i}' + r'}:.*?</li>'
                 
             # Use re.sub to remove the list item containing the placeholders
             html = re.sub(pattern, '', html)
