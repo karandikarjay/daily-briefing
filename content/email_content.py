@@ -10,8 +10,8 @@ import email
 from email.header import decode_header
 from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
-from typing import List, Dict, Any
-from config import GOOGLE_USERNAME, GOOGLE_PASSWORD
+from typing import List, Dict
+from config import GOOGLE_USERNAME, GOOGLE_PASSWORD, IMAP_SERVER, IMAP_PORT, FAST_EMAIL
 
 def get_fast_email_content() -> List[Dict[str, str]]:
     """
@@ -21,9 +21,7 @@ def get_fast_email_content() -> List[Dict[str, str]]:
     Returns:
         List[Dict[str, str]]: A list of email contents with subject and body
     """
-    IMAP_SERVER = "imap.gmail.com"
-    IMAP_PORT = 993
-    search_email = "fast-farm-animal-strategic-team@googlegroups.com"
+    search_email = FAST_EMAIL
 
     try:
         mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)

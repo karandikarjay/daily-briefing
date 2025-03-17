@@ -8,7 +8,7 @@ both standard requests and headless browser automation.
 import logging
 import requests
 from bs4 import BeautifulSoup
-from typing import Dict, Any, Optional
+from typing import Dict
 from playwright.sync_api import sync_playwright
 from playwright_stealth import stealth_sync
 from config import HEADERS

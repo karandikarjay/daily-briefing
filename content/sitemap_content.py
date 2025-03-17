@@ -9,8 +9,8 @@ import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from bs4 import BeautifulSoup
-from typing import List, Dict, Any
-from config import HEADERS
+from typing import List, Dict
+from config import HEADERS, GREEN_QUEEN_SITEMAP_URL
 
 def get_gq_sitemap_urls(sitemap_index_url: str) -> List[str]:
     """
@@ -150,7 +150,7 @@ def get_gq_content() -> List[Dict[str, str]]:
     Returns:
         List[Dict[str, str]]: A list of dictionaries with article content
     """
-    sitemap_index_url = "https://www.greenqueen.com.hk/sitemap_index.xml"
+    sitemap_index_url = GREEN_QUEEN_SITEMAP_URL
     post_sitemap_urls = get_gq_sitemap_urls(sitemap_index_url)
     article_urls = get_latest_24h_articles(post_sitemap_urls, "Green Queen")
     articles = get_gq_article_content(article_urls)

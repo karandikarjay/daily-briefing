@@ -14,6 +14,7 @@ from .rss_content import (
 from .web_content import get_axios_article, get_semafor_article
 from .email_content import get_fast_email_content
 from .sitemap_content import get_gq_content
+from config import AXIOS_NEWSLETTERS, SEMAFOR_NEWSLETTERS
 
 def get_content(title: str) -> List[Dict[str, Any]]:
     """
@@ -39,29 +40,29 @@ def get_content(title: str) -> List[Dict[str, Any]]:
         return content
     elif title == "Venture Capital":
         content.append({"source_name": "Term Sheet", "content": get_ts_content(), "content_type": "articles"})
-        content.append({"source_name": "Axios Pro Rata", "content": get_axios_article("https://www.axios.com/newsletters/axios-pro-rata"), "content_type": "articles"})
+        content.append({"source_name": "Axios Pro Rata", "content": get_axios_article(AXIOS_NEWSLETTERS["Pro Rata"]), "content_type": "articles"})
         return content
     elif title == "Financial Markets":
         content.append({"source_name": "Short Squeez", "content": get_ss_content(), "content_type": "articles"})
-        content.append({"source_name": "Axios Markets", "content": get_axios_article("https://www.axios.com/newsletters/axios-markets"), "content_type": "articles"})
-        content.append({"source_name": "Axios Macro", "content": get_axios_article("https://www.axios.com/newsletters/axios-macro"), "content_type": "articles"})
-        content.append({"source_name": "Axios Closer", "content": get_axios_article("https://www.axios.com/newsletters/axios-closer"), "content_type": "articles"})
-        content.append({"source_name": "Semafor Business", "content": get_semafor_article("https://www.semafor.com/newsletters/business/latest"), "content_type": "articles"})
+        content.append({"source_name": "Axios Markets", "content": get_axios_article(AXIOS_NEWSLETTERS["Markets"]), "content_type": "articles"})
+        content.append({"source_name": "Axios Macro", "content": get_axios_article(AXIOS_NEWSLETTERS["Macro"]), "content_type": "articles"})
+        content.append({"source_name": "Axios Closer", "content": get_axios_article(AXIOS_NEWSLETTERS["Closer"]), "content_type": "articles"})
+        content.append({"source_name": "Semafor Business", "content": get_semafor_article(SEMAFOR_NEWSLETTERS["Business"]), "content_type": "articles"})
         return content
     elif title == "AI":
         content.append({"source_name": "The Rundown AI", "content": get_rundown_content(), "content_type": "articles"})
-        content.append({"source_name": "Axios AI+", "content": get_axios_article("https://www.axios.com/newsletters/axios-ai-plus"), "content_type": "articles"})
+        content.append({"source_name": "Axios AI+", "content": get_axios_article(AXIOS_NEWSLETTERS["AI+"]), "content_type": "articles"})
         return content
     elif title == "Politics":
-        content.append({"source_name": "Axios AM", "content": get_axios_article("https://www.axios.com/newsletters/axios-am"), "content_type": "articles"})
-        content.append({"source_name": "Axios PM", "content": get_axios_article("https://www.axios.com/newsletters/axios-pm"), "content_type": "articles"})
-        content.append({"source_name": "Semafor Flagship", "content": get_semafor_article("https://www.semafor.com/newsletters/flagship/latest"), "content_type": "articles"})
-        content.append({"source_name": "Semafor Principals", "content": get_semafor_article("https://www.semafor.com/newsletters/principals/latest"), "content_type": "articles"})
-        content.append({"source_name": "Semafor Americana", "content": get_semafor_article("https://www.semafor.com/newsletters/americana/latest"), "content_type": "articles"})
+        content.append({"source_name": "Axios AM", "content": get_axios_article(AXIOS_NEWSLETTERS["AM"]), "content_type": "articles"})
+        content.append({"source_name": "Axios PM", "content": get_axios_article(AXIOS_NEWSLETTERS["PM"]), "content_type": "articles"})
+        content.append({"source_name": "Semafor Flagship", "content": get_semafor_article(SEMAFOR_NEWSLETTERS["Flagship"]), "content_type": "articles"})
+        content.append({"source_name": "Semafor Principals", "content": get_semafor_article(SEMAFOR_NEWSLETTERS["Principals"]), "content_type": "articles"})
+        content.append({"source_name": "Semafor Americana", "content": get_semafor_article(SEMAFOR_NEWSLETTERS["Americana"]), "content_type": "articles"})
         return content
     elif title == "Climate":
-        content.append({"source_name": "Axios Generate", "content": get_axios_article("https://www.axios.com/newsletters/axios-generate"), "content_type": "articles"})
-        content.append({"source_name": "Semafor Net Zero", "content": get_semafor_article("https://www.semafor.com/newsletters/netzero/latest"), "content_type": "articles"})
+        content.append({"source_name": "Axios Generate", "content": get_axios_article(AXIOS_NEWSLETTERS["Generate"]), "content_type": "articles"})
+        content.append({"source_name": "Semafor Net Zero", "content": get_semafor_article(SEMAFOR_NEWSLETTERS["Net Zero"]), "content_type": "articles"})
         return content
     else:
         logging.warning(f"No content retrieval function defined for title: {title}")

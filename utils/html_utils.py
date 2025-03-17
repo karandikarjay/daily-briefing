@@ -6,6 +6,7 @@ This module provides functions for generating HTML content for the email newslet
 
 import re
 import logging
+from bs4 import BeautifulSoup
 
 def generate_email_html(template: str, sections_data: dict) -> str:
     """
@@ -83,8 +84,6 @@ def clean_html_content(html_content: str) -> str:
         return ""
     
     try:
-        from bs4 import BeautifulSoup
-        
         # Parse HTML
         soup = BeautifulSoup(html_content, 'html.parser')
         

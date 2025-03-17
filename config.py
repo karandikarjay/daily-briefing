@@ -10,6 +10,7 @@ import os
 import pytz
 from dotenv import load_dotenv
 from zoneinfo import ZoneInfo
+import sys
 from typing import List
 
 # Load environment variables from .env file
@@ -28,7 +29,6 @@ RECIPIENT_EMAILS = [email.strip() for email in recipient_emails_str.split(",")] 
 AI_MODEL = "gpt-4o"
 
 # Get the directory where the script is located
-import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
 
 # Log file paths
@@ -176,7 +176,6 @@ SECTIONS = [
 ]
 
 # Timezone settings
-EASTERN = pytz.timezone('America/New_York')
 EASTERN_ZONE = ZoneInfo("America/New_York")
 
 # Chart styling

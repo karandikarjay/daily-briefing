@@ -12,12 +12,12 @@ import re
 import json
 from datetime import datetime, timedelta, timezone
 from bs4 import BeautifulSoup
-from email.utils import parsedate_to_datetime, mktime_tz
+from email.utils import parsedate_to_datetime
 from typing import List, Dict, Any, Optional
 from zoneinfo import ZoneInfo
 from utils.html_utils import clean_html_content
 from utils.api_utils import num_tokens_from_string
-from config import HEADERS
+from config import HEADERS, RUNDOWN_RSS_URL, SHORT_SQUEEZ_RSS_URL, TERM_SHEET_URL, VEGCONOMIST_RSS_URL, EA_FORUM_RSS_URL
 import time
 
 def get_rundown_content() -> Optional[Dict[str, str]]:
@@ -28,7 +28,7 @@ def get_rundown_content() -> Optional[Dict[str, str]]:
     Returns:
         Optional[Dict[str, str]]: A dictionary with URL and article text, or None if retrieval fails
     """
-    rss_url = "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml"
+    rss_url = RUNDOWN_RSS_URL
     feed = feedparser.parse(rss_url)
     if not feed.entries:
         logging.warning("No entries found in The Rundown RSS feed")
@@ -60,7 +60,7 @@ def get_ss_content() -> Optional[Dict[str, str]]:
     Returns:
         Optional[Dict[str, str]]: A dictionary with URL and article text, or None if retrieval fails
     """
-    rss_url = "https://rss.beehiiv.com/feeds/uuk5kg8PFC.xml"
+    rss_url = SHORT_SQUEEZ_RSS_URL
     feed = feedparser.parse(rss_url)
     if not feed.entries:
         logging.warning("No entries found in the Short Squeez RSS feed")
@@ -92,7 +92,7 @@ def get_ts_content() -> Dict[str, str]:
     Returns:
         Dict[str, str]: A dictionary with URL and article text
     """
-    url = "https://content.fortune.com/newsletter/termsheet/"
+    url = TERM_SHEET_URL
     try:
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
@@ -121,7 +121,7 @@ def get_vegconomist_content() -> List[Dict[str, str]]:
 
     try:
         # Parse the RSS feed
-        feed = feedparser.parse('https://vegconomist.com/feed/')
+        feed = feedparser.parse(VEGCONOMIST_RSS_URL)
         
         # First pass: find the most recent article timestamp
         for entry in feed.entries:
@@ -188,7 +188,7 @@ def get_ea_forum_content() -> List[Dict[str, str]]:
     Returns:
         List[Dict[str, str]]: A list of dictionaries with URL, title, and article text
     """
-    feed_url = "https://forum.effectivealtruism.org/feed.xml?view=frontpage-rss&karmaThreshold=2"
+    feed_url = EA_FORUM_RSS_URL
     try:
         response = requests.get(feed_url)
         response.raise_for_status()

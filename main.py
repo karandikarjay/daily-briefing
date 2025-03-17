@@ -7,13 +7,11 @@ processes the content, creates charts from financial data, and sends out an emai
 newsletter containing a daily briefing.
 """
 
-import os
 import sys
 import json
 import logging
 from openai import OpenAI
-import time
-from typing import Dict, List, Any
+from typing import Dict, List
 
 # Import configuration
 from config import (

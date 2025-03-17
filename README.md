@@ -58,8 +58,6 @@ daily-briefing/
 ├── models/                  # Data models for structured content
 │   ├── __init__.py
 │   └── data_models.py
-├── processors/              # Content processing logic
-│   └── content_processor.py
 ├── utils/                   # Utility functions
 │   ├── __init__.py
 │   ├── api_utils.py
