@@ -27,8 +27,6 @@ The Daily Briefing application collects content from multiple sources, processes
   - Beyond Meat (BYND)
   - Oatly (OTLY)
   - S&P 500
-  - 10-Year Treasury Yield
-  - VIX (Volatility Index)
 
 - **Email Delivery**: Sends a formatted HTML email with:
   - Organized sections for different topics
