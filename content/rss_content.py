@@ -16,7 +16,7 @@ from typing import List, Dict, Any, Optional, Callable
 from zoneinfo import ZoneInfo
 from utils.html_utils import clean_html_content
 from utils.api_utils import num_tokens_from_string
-from config import HEADERS, RUNDOWN_RSS_URL, TERM_SHEET_URL, VEGCONOMIST_RSS_URL, EA_FORUM_RSS_URL
+from config import HEADERS, RUNDOWN_RSS_URL, VEGCONOMIST_RSS_URL, EA_FORUM_RSS_URL
 import time
 
 def fetch_and_parse_rss(rss_url: str) -> Optional[feedparser.FeedParserDict]:
@@ -124,30 +124,6 @@ def get_rundown_content() -> Optional[Dict[str, str]]:
         Optional[Dict[str, str]]: A dictionary with URL and article text, or None if retrieval fails
     """
     return get_single_article_from_rss(RUNDOWN_RSS_URL, "div:content-blocks", "The Rundown")
-
-def get_ts_content() -> Dict[str, str]:
-    """
-    Retrieves content from the Term Sheet page.
-    Extracts article text from table cells with the class 'bodyContent'.
-    
-    Returns:
-        Dict[str, str]: A dictionary with URL and article text
-    """
-    url = TERM_SHEET_URL
-    try:
-        response = requests.get(url, headers=HEADERS)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'html.parser')
-        body_contents = soup.find_all("td", class_="bodyContent")
-        if not body_contents:
-            raise ValueError("No elements with class 'bodyContent' found.")
-        article_text = "\n\n".join(
-            section.get_text(separator="\n", strip=True) for section in body_contents
-        )
-        return {"url": url, "article": article_text}
-    except Exception as e:
-        logging.exception(f"Error retrieving Term Sheet content from {url}")
-        raise
 
 def get_articles_within_timeframe(
     feed_data: Any, 

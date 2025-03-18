@@ -57,8 +57,6 @@ CHART_PATHS = {
     'bynd-chart.png': os.path.join(SCRIPT_DIR, 'bynd-chart.png'),
     'otly-chart.png': os.path.join(SCRIPT_DIR, 'otly-chart.png'),
     'sp500-chart.png': os.path.join(SCRIPT_DIR, 'sp500-chart.png'),
-    '10y-yield-chart.png': os.path.join(SCRIPT_DIR, '10y-yield-chart.png'),
-    'vix-chart.png': os.path.join(SCRIPT_DIR, 'vix-chart.png')
 }
 
 # Chart content IDs for email embedding
@@ -66,8 +64,6 @@ CHART_CONTENT_IDS = {
     'bynd-chart.png': '<bynd-chart>',
     'otly-chart.png': '<otly-chart>',
     'sp500-chart.png': '<sp500-chart>',
-    '10y-yield-chart.png': '<10y-yield-chart>',
-    'vix-chart.png': '<vix-chart>'
 }
 
 # Financial tickers configuration
@@ -75,8 +71,6 @@ TICKERS = {
     'BYND': {'filename': CHART_PATHS['bynd-chart.png'], 'display_name': 'Beyond Meat'},
     'OTLY': {'filename': CHART_PATHS['otly-chart.png'], 'display_name': 'Oatly'},
     '^GSPC': {'filename': CHART_PATHS['sp500-chart.png'], 'display_name': 'S&P 500'},
-    '^TNX': {'filename': CHART_PATHS['10y-yield-chart.png'], 'display_name': '10-Year Treasury'},
-    '^VIX': {'filename': CHART_PATHS['vix-chart.png'], 'display_name': 'VIX'}
 }
 
 # Section definitions for the daily briefing
@@ -118,54 +112,9 @@ SECTIONS = [
         "content_type": "articles"
     },
     {
-        "title": "Venture Capital",
-        "prompt": (
-            "I am a venture capitalist. I want to know what's going on in the venture capital ecosystem, such as any major deals and broader market trends. "
-            "Give me the 3 most important bullet points to be aware of from the content I have provided below. "
-            "Give me the bullet points only without anything before or after. "
-            "Make sure that there are exactly 3 bullet points (no more, no fewer). "
-            "Make sure that any claims you make are substantiated by the text of the sources you reference. "
-        ),
-        "content_type": "articles"
-    },
-    {
-        "title": "Financial Markets",
-        "prompt": (
-            "I am an investor at a hedge fund. I want to know what's going on in the financial markets, particularly the performance of the markets as a whole, any significant economic news releases, and any major deals. "
-            "Give me the 3 most important bullet points to be aware of from the content I have provided below. "
-            "Give me the bullet points only without anything before or after. "
-            "Make sure that there are exactly 3 bullet points (no more, no fewer). "
-            "Make sure that any claims you make are substantiated by the text of the sources you reference. "
-        ),
-        "content_type": "articles"
-    },
-    {
         "title": "AI",
         "prompt": (
             "I want to know what new developments are going on in the world of AI tools so that I can increase my personal productivity and I also want to know what the cutting-edge AI companies are doing since they are likely to have a significant impact on the world. "
-            "Give me the 3 most important bullet points to be aware of from the content I have provided below. "
-            "Give me the bullet points only without anything before or after. "
-            "Make sure that there are exactly 3 bullet points (no more, no fewer). "
-            "Make sure that any claims you make are substantiated by the text of the sources you reference. "
-        ),
-        "content_type": "articles"
-    },
-    {
-        "title": "Politics",
-        "prompt": (
-            "I want to know what's going on in the world of politics so that I can be well-informed in case any recent developments come up in conversation. "
-            "Give me the 3 most important bullet points to be aware of from the content I have provided below. "
-            "Give me the bullet points only without anything before or after. "
-            "Make sure that there are exactly 3 bullet points (no more, no fewer). "
-            "Make sure that any claims you make are substantiated by the text of the sources you reference. "
-        ),
-        "content_type": "articles"
-    },
-    {
-        "title": "Climate",
-        "prompt": (
-            "I want to know what's going on with regard to climate change, including how startups and venture capitalists are addressing the issue, "
-            "how policymakers are responding, what climate philanthropists are doing, what strategies the environmental movement is pursuing, and any updates to climate science. "
             "Give me the 3 most important bullet points to be aware of from the content I have provided below. "
             "Give me the bullet points only without anything before or after. "
             "Make sure that there are exactly 3 bullet points (no more, no fewer). "
@@ -196,25 +145,4 @@ GREEN_QUEEN_SITEMAP_URL = "https://www.greenqueen.com.hk/sitemap_index.xml"
 VEGCONOMIST_RSS_URL = "https://vegconomist.com/feed/"
 EA_FORUM_RSS_URL = "https://forum.effectivealtruism.org/feed.xml?view=frontpage-rss&karmaThreshold=2"
 RUNDOWN_RSS_URL = "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml"
-TERM_SHEET_URL = "https://content.fortune.com/newsletter/termsheet/"
 FAST_EMAIL = "fast-farm-animal-strategic-team@googlegroups.com"
-
-# APIs and sources configuration
-AXIOS_NEWSLETTERS = {
-    "Pro Rata": "https://www.axios.com/newsletters/axios-pro-rata",
-    "Markets": "https://www.axios.com/newsletters/axios-markets",
-    "Macro": "https://www.axios.com/newsletters/axios-macro",
-    "Closer": "https://www.axios.com/newsletters/axios-closer",
-    "AM": "https://www.axios.com/newsletters/axios-am",
-    "PM": "https://www.axios.com/newsletters/axios-pm",
-    "Generate": "https://www.axios.com/newsletters/axios-generate",
-    "AI+": "https://www.axios.com/newsletters/axios-ai-plus"
-}
-
-SEMAFOR_NEWSLETTERS = {
-    "Business": "https://www.semafor.com/newsletters/business/latest",
-    "Flagship": "https://www.semafor.com/newsletters/flagship/latest",
-    "Principals": "https://www.semafor.com/newsletters/principals/latest",
-    "Americana": "https://www.semafor.com/newsletters/americana/latest",
-    "Net Zero": "https://www.semafor.com/newsletters/netzero/latest"
-}

@@ -9,11 +9,7 @@ The Daily Briefing application collects content from multiple sources, processes
 - Alternative Protein
 - Vegan Movement
 - Effective Altruism
-- Venture Capital
-- Financial Markets
 - AI
-- Politics
-- Climate
 
 ## Features
 
@@ -21,7 +17,6 @@ The Daily Briefing application collects content from multiple sources, processes
   - RSS feeds (Vegconomist, EA Forum, The Rundown)
   - Website sitemaps (Green Queen)
   - Email lists (FAST)
-  - Web scraping (Axios, Semafor, Term Sheet)
 
 - **AI-Powered Content Processing**: Uses OpenAI's GPT models to:
   - Extract the most important information from each source

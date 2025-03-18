@@ -29,7 +29,7 @@ def create_charts() -> None:
         ax = plt.gca()
         ax.set_facecolor(BACKGROUND_COLOR)
         plt.plot(data.index, data['Close'],
-                 label='Close Price' if ticker != '^TNX' else 'Yield',
+                 label='Close Price',
                  color=CHART_COLOR, linewidth=2)
         plt.grid(True, linestyle='--', alpha=0.7, color=GRID_COLOR)
         
@@ -44,11 +44,8 @@ def create_charts() -> None:
                      fontsize=14, color=CHART_COLOR,
                      ha='left', va='center')
 
-        # Customize title based on ticker
-        if ticker == '^TNX':
-            title = f"{info['display_name']} Yield"
-        else:
-            title = f"{info['display_name']}"
+        # We can simply use the display_name for the title
+        title = f"{info['display_name']}"
             
         plt.title(title, color=CHART_COLOR, fontsize=18, pad=20, fontweight='bold')
         
