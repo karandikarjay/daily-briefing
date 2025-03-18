@@ -52,18 +52,24 @@ TOKEN_BUFFER = 1000  # Buffer to account for response tokens
 # Email template path
 TEMPLATE_PATH = os.path.join(SCRIPT_DIR, "template.html")
 
-# Chart file paths
+# USDA Egg Price Chart URL and path
+USDA_PDF_URL = "https://www.ams.usda.gov/mnreports/ams_3725.pdf"
+EGG_PRICE_CHART_PATH = os.path.join(SCRIPT_DIR, 'egg-price-chart.png')
+
+# Update the chart paths dictionary
 CHART_PATHS = {
     'bynd-chart.png': os.path.join(SCRIPT_DIR, 'bynd-chart.png'),
     'otly-chart.png': os.path.join(SCRIPT_DIR, 'otly-chart.png'),
     'sp500-chart.png': os.path.join(SCRIPT_DIR, 'sp500-chart.png'),
+    'egg-price-chart.png': EGG_PRICE_CHART_PATH,
 }
 
-# Chart content IDs for email embedding
+# Update chart content IDs for email embedding
 CHART_CONTENT_IDS = {
     'bynd-chart.png': '<bynd-chart>',
     'otly-chart.png': '<otly-chart>',
     'sp500-chart.png': '<sp500-chart>',
+    'egg-price-chart.png': '<egg-price-chart>',
 }
 
 # Financial tickers configuration
