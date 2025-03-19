@@ -7,7 +7,6 @@ used throughout the application.
 """
 
 import os
-import pytz
 from dotenv import load_dotenv
 from zoneinfo import ZoneInfo
 import sys
@@ -85,52 +84,53 @@ TICKERS = {
     '^GSPC': {'filename': CHART_PATHS['sp500-chart.png'], 'display_name': 'S&P 500'},
 }
 
+# User personality and preferences for personalized content
+USER_PERSONALITY = "a philanthropist who donates to nonprofits working to create a vegan world and an investor in alternative protein startups. They're deeply committed to animal welfare causes and interested in the business side of plant-based foods and cultivated meat. They want comprehensive updates on the alternative protein industry for investment decisions, meaningful developments in the vegan movement to inform donation strategies, and insights from effective altruism to maximize their impact."
+
+# Newsletter tone settings
+NEWSLETTER_TONE = "conversational and engaging - like a well-informed colleague giving you updates. Include occasional light humor when appropriate, but maintain a professional tone. Use clear language that feels natural, with just a touch of lightheartedness to avoid being too serious - but avoid being silly or over-the-top with humor."
+
+# Common prompt elements that apply to all sections
+COMMON_PROMPT_ELEMENTS = (
+    "Your task is to identify the most important news items "
+    "from the content provided and output them in a structured format. Each news item should include a title, a detailed description, "
+    "source information, and a link to the original source when available. "
+    "Ensure all claims are substantiated by the sources provided."
+)
+
 # Section definitions for the daily briefing
 SECTIONS = [
     {
         "title": "Alternative Protein",
         "prompt": (
-            "I am an investor in alternative protein startups. I want to be aware of recent developments in the alternative protein industry "
-            "(especially recent funding rounds and new product launches) so that I can invest wisely. "
-            "Give me the 3 most important bullet points to be aware of from the content I have provided below. "
-            "Give me the bullet points only without anything before or after. "
-            "Make sure that there are exactly 3 bullet points (no more, no fewer). "
-            "Make sure that any claims you make are substantiated by the text of the sources you reference. "
+            f"You are an analyst specializing in the alternative protein industry. {COMMON_PROMPT_ELEMENTS} "
+            "Focus on recent developments, especially funding rounds and new product launches."
         ),
         "content_type": "articles"
     },
     {
         "title": "Vegan Movement",
         "prompt": (
-            "I am a philanthropist who donates to the vegan movement. I want to stay up to date on what's going on in the vegan movement "
-            "(particularly recent accomplishments, new research, and lessons learned) so that I can make better philanthropic decisions when we're pitched by vegan nonprofits. "
-            "Note that Farmed Animal Strategic Team (FAST) is not the name of an organization, but simply the name of an email list where people in the vegan movement share updates. "
-            "Give me the 3 most important bullet points to be aware of from the content I have provided below. "
-            "Give me the bullet points only without anything before or after. "
-            "Make sure that there are exactly 3 bullet points (no more, no fewer). "
-            "Make sure that any claims you make are substantiated by the text of the sources you reference. "
+            f"You are an analyst specializing in the vegan movement and animal welfare. {COMMON_PROMPT_ELEMENTS} "
+            "Focus on recent accomplishments, new research, and lessons learned that would be relevant to philanthropists. "
+            "Note that Farmed Animal Strategic Team (FAST) is not the name of an organization, but simply the name of an email list where people in the vegan movement share updates."
         ),
         "content_type": "emails"
     },
     {
         "title": "Effective Altruism",
         "prompt": (
-            "I am a philanthropist. I want to be aware of the latest discussions in the effective altruism community so that I can make donations effectively. "
-            "Give me the 3 most important bullet points to be aware of from the content I have provided below. "
-            "Give me the bullet points only without anything before or after. "
-            "Make sure that there are exactly 3 bullet points (no more, no fewer). "
-            "Make sure that any claims you make are substantiated by the text of the sources you reference. "
+            f"You are an analyst specializing in effective altruism. {COMMON_PROMPT_ELEMENTS} "
+            "Focus on the latest discussions that would be relevant to philanthropists seeking to maximize their impact."
         ),
         "content_type": "articles"
     },
     {
         "title": "AI",
         "prompt": (
-            "I want to know what new developments are going on in the world of AI tools so that I can increase my personal productivity and I also want to know what the cutting-edge AI companies are doing since they are likely to have a significant impact on the world. "
-            "Give me the 3 most important bullet points to be aware of from the content I have provided below. "
-            "Give me the bullet points only without anything before or after. "
-            "Make sure that there are exactly 3 bullet points (no more, no fewer). "
-            "Make sure that any claims you make are substantiated by the text of the sources you reference. "
+            f"You are an analyst specializing in artificial intelligence. {COMMON_PROMPT_ELEMENTS} "
+            "Focus on new AI developments that could increase personal productivity and cutting-edge advancements from "
+            "major AI companies."
         ),
         "content_type": "articles"
     }

@@ -2,25 +2,27 @@
 """
 Daily Briefing Script
 
-This script gathers content from various sources (RSS feeds, sitemaps, emails, etc.),
-processes the content, creates charts from financial data, and sends out an email
-newsletter containing a daily briefing.
+This script gathers insights from various sources (RSS feeds, sitemaps, emails, etc.),
+processes the content, creates visualizations from financial data, and delivers a
+personalized email newsletter containing your daily briefing.
 """
 
 import sys
 import json
 import logging
+import os
 from openai import OpenAI
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 # Import configuration
 from config import (
-    OPENAI_API_KEY, AI_MODEL, SECTIONS, TEMPLATE_PATH
+    OPENAI_API_KEY, AI_MODEL, SECTIONS, TEMPLATE_PATH,
+    USER_PERSONALITY, NEWSLETTER_TONE
 )
 
 # Import utilities
 from utils.logging_setup import setup_logging, log_section_prompt, log_section_response, log_newsletter
-from utils.api_utils import num_tokens_from_string, call_openai_parse_with_backoff
+from utils.api_utils import num_tokens_from_string, call_openai_parse_with_backoff, call_openai_api_with_backoff
 from utils.html_utils import generate_email_html
 from utils.email_utils import send_email
 
@@ -32,8 +34,10 @@ from charts import create_charts, extract_egg_price_chart, get_beyond_meat_bond_
 
 # Import models
 from models.data_models import (
-    ArticleBulletPointsResponse,
-    EmailBulletPointsResponse
+    TopicNewsResponse,
+    CohesiveNewsletterResponse,
+    NewsItem,
+    ContentElement
 )
 
 def main():
@@ -47,10 +51,10 @@ def main():
     # Initialize OpenAI client
     client = OpenAI(api_key=OPENAI_API_KEY)
     
-    # Dictionary to store bullet points for each section
-    sections_data = {}
+    # Dictionary to store news items for each section
+    all_news_items = []
 
-    # Process each section and gather its bullet points
+    # Process each section and gather its news items
     for section in SECTIONS:
         content = get_content(section["title"])
         
@@ -74,55 +78,231 @@ def main():
                 {"role": "user", "content": user_content}
             ]
             
-            # Create the appropriate Pydantic response model based on content type
-            if section["content_type"] == "articles":
-                response_model = ArticleBulletPointsResponse
-            else:  # for emails
-                response_model = EmailBulletPointsResponse
-            
-            # Make API call with structured output using call_openai_parse_with_backoff
+            # Make API call with structured output
             response = call_openai_parse_with_backoff(
                 client,
                 messages,
-                response_model,
+                TopicNewsResponse,
                 model=AI_MODEL
             )
             
-            # Convert Pydantic models to dictionaries before serializing to JSON
-            serializable_bullet_points = [bullet.model_dump() for bullet in response.choices[0].message.parsed.bullet_points]
-            # Store the bullet points in the sections_data dictionary
-            sections_data[section["title"]] = serializable_bullet_points
+            # Add news items from this section to the overall list
+            section_news_items = response.choices[0].message.parsed.news_items
+            for item in section_news_items:
+                # Add the section title to each news item for reference
+                item_dict = item.model_dump()
+                item_dict["topic"] = section["title"]
+                all_news_items.append(item_dict)
             
             # Log the response for debugging
-            bullet_points_json = json.dumps(serializable_bullet_points)
-            log_section_response(prompt_logger, section["title"], bullet_points_json)
+            news_items_json = json.dumps([item.model_dump() for item in section_news_items])
+            log_section_response(prompt_logger, section["title"], news_items_json)
             
         except Exception as e:
             logging.exception(f"Error obtaining response for section: {section['title']}")
-            sections_data[section["title"]] = []  # Empty array as fallback
     
     try:
-        # Read the HTML newsletter template
-        with open(TEMPLATE_PATH, "r", encoding="utf-8") as file:
-            template = file.read()
+        # Generate cohesive newsletter text with a final API call
+        if all_news_items:
+            newsletter_elements, email_subject = generate_cohesive_newsletter(client, all_news_items, prompt_logger)
             
-        # Generate the HTML for the newsletter using the template and bullet points
-        newsletter = generate_email_html(template, sections_data)
-        
-        # Log the generated newsletter for debugging
-        log_newsletter(prompt_logger, newsletter)
-        
+            # Generate images for any image descriptions
+            image_paths = generate_dalle_images(client, newsletter_elements)
+            
+            # Read the HTML newsletter template
+            with open(TEMPLATE_PATH, "r", encoding="utf-8") as file:
+                template = file.read()
+                
+            # Generate the HTML for the newsletter using the template and cohesive text
+            newsletter = generate_email_html(template, newsletter_elements, image_paths)
+            
+            # Log the generated newsletter for debugging
+            log_newsletter(prompt_logger, newsletter)
+        else:
+            logging.error("No news items collected. Cannot generate newsletter.")
+            newsletter = "<html><body><h1>Daily Briefing</h1><p>There was an error generating the newsletter content.</p></body></html>"
+            email_subject = None
+            image_paths = {}
+            
     except Exception as e:
         logging.exception("Error generating newsletter HTML")
         # Fallback to a simple HTML message
         newsletter = "<html><body><h1>Daily Briefing</h1><p>There was an error generating the newsletter content.</p></body></html>"
+        email_subject = None
+        image_paths = {}
 
     # Create financial charts, beyond meat bond chart, egg price chart, then send the email newsletter
     create_charts()
     get_beyond_meat_bond_chart()
     extract_egg_price_chart()
-    send_email(newsletter, send_to_everyone)
+    send_email(newsletter, email_subject, send_to_everyone, image_paths)
     logging.info("Daily briefing process completed successfully.")
+
+def generate_dalle_images(client: OpenAI, newsletter_elements: List[ContentElement]) -> Dict[str, str]:
+    """
+    Generates images using DALL-E 3 for any image_description elements.
+    
+    Args:
+        client: The OpenAI client
+        newsletter_elements: List of newsletter content elements
+        
+    Returns:
+        Dict[str, str]: Dictionary mapping image_id to file path
+    """
+    image_paths = {}
+    image_counter = 1
+    
+    for i, element in enumerate(newsletter_elements):
+        if element.type == "image_description":
+            image_id = f"generated_image_{image_counter}"
+            image_counter += 1
+            
+            try:
+                logging.info(f"Generating DALL-E image for: {element.content[:50]}...")
+                
+                # Prepare image generation parameters
+                params = {
+                    "model": "dall-e-3",
+                    "prompt": element.content,
+                    "size": "1792x1024",
+                    "quality": "standard",
+                    "n": 1,
+                }
+                
+                # Generate image with DALL-E 3 using the rate limiting utility
+                response = call_openai_api_with_backoff(
+                    client,
+                    api_call=lambda: client.images.generate(**params),
+                    resource_type="images"
+                )
+                
+                # Get image URL
+                image_url = response.data[0].url
+                
+                # Download the image
+                import requests
+                from PIL import Image
+                from io import BytesIO
+                
+                # Create a temporary directory if it doesn't exist
+                temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp_images")
+                os.makedirs(temp_dir, exist_ok=True)
+                
+                # Download and save the image
+                response = requests.get(image_url)
+                img = Image.open(BytesIO(response.content))
+                
+                # Save the image to a file
+                image_path = os.path.join(temp_dir, f"{image_id}.png")
+                img.save(image_path)
+                
+                # Add the image path to the dictionary
+                image_paths[image_id] = image_path
+                
+                logging.info(f"DALL-E image saved to {image_path}")
+                
+                # Update the element content to include the image ID for reference
+                element.content = image_id
+                
+            except Exception as e:
+                logging.exception(f"Error generating DALL-E image: {e}")
+    
+    return image_paths
+
+def generate_cohesive_newsletter(client: OpenAI, news_items: List[Dict], prompt_logger) -> tuple:
+    """
+    Generates a cohesive newsletter from the collected news items.
+    
+    Args:
+        client: The OpenAI client
+        news_items: List of news items from all sections
+        prompt_logger: Logger for prompts and responses
+        
+    Returns:
+        tuple: (newsletter_elements, email_subject)
+    """
+    # Create the prompt for generating cohesive text
+    system_prompt = (
+        f"You are writing a personalized daily briefing for {USER_PERSONALITY}. "
+        f"Create a cohesive daily briefing with a custom subject line and content elements from the news items provided. "
+        f"The tone should be {NEWSLETTER_TONE}. "
+        "\n\nThe primary goal of this briefing is to keep the reader informed about:"
+        "\n1. Developments in the alternative protein industry that might affect investment decisions"
+        "\n2. Updates in the vegan movement that could influence donation strategies"
+        "\n3. Current discussions in the effective altruism community"
+        "\n4. Recent AI developments, especially new tools that could be useful for work"
+        "\n\nThe text should flow naturally between topics, with smooth transitions. "
+        "Include all important information from each news item. "
+        "Ensure you include citations to sources for each piece of information. "
+        "IMPORTANT: Create hyperlinks to original sources using HTML anchor tags. For each news item, include at least one link to the source_link when available. "
+        "IMPORTANT: Seamlessly integrate citations within the text flow. Instead of using parentheses, use phrases like 'according to <a href=\"source_link\">source_name</a>', 'as reported by <a href=\"source_link\">source_name</a>', 'in a recent article from <a href=\"source_link\">source_name</a>', etc."
+        "For emails, mention the sender name and subject line naturally in the text."
+        
+        # Add specific guidance about tempering enthusiastic claims
+        "\n\nIMPORTANT: Maintain a measured, thoughtful tone even when reporting on enthusiastic or bold claims from the sources. "
+        "When sources make ambitious projections or strong claims:"
+        "\n- Present these with appropriate context and qualification"
+        "\n- Use phrases like 'aims to,' 'is working toward,' or 'the company suggests that' rather than stating projections as certainties"
+        "\n- If a source uses particularly hyperbolic language, tone it down while preserving the core information"
+        "\n- Distinguish between factual developments (funding secured, products launched) and speculative claims or forecasts"
+        "\n- Where appropriate, note that certain statements reflect the source's perspective rather than established facts"
+        "\n- Use language like 'according to the announcement' or 'in their report' to attribute claims to their sources"
+        "\nThe goal is to present information faithfully but with appropriate nuance and critical distance."
+        
+        "\n\nIMPORTANT: Your output will be formatted as follows:"
+        "\n1. A custom email subject line that captures the essence of today's briefing"
+        "\n2. A list of content elements, each marked as either 'paragraph', 'heading', or 'image_description'"
+        "\n\nFor content that would be enclosed in <p> tags, mark it as 'paragraph'."
+        "\nFor content that would be enclosed in <h2> tags, mark it as 'heading'."
+        "\nFor visual prompts that would be used to generate images with DALL-E 3, mark as 'image_description'. "
+        "\n\nFor image descriptions:"
+        "\n- Include 3-4 image descriptions throughout the newsletter at appropriate points"
+        "\n- Make each image description HIGHLY SPECIFIC to the actual news items you just mentioned in the preceding paragraphs"
+        "\n- Base each image directly on the most visually interesting or important news item from that section"
+        "\n- Create detailed, vivid descriptions (1-3 sentences) focusing on visual elements that would enhance understanding of the news item"
+        "\n- Position image descriptions after discussing the relevant news item, not before"
+        "\n- Avoid requesting text in the images"
+        "\n- Use a photorealistic style unless specifically noting otherwise"
+        
+        "\n\nDO include HTML formatting in the content text itself as needed (e.g., <a> tags for links, <strong>, <em>, etc.)."
+        "\nDO NOT include the structural <p> and <h2> tags - we will add those programmatically based on your type markers."
+        "\n\nEnsure all citations are woven naturally into the flow of the appropriate paragraph."
+    )
+    
+    # Convert news items to a string for the API call
+    news_items_str = json.dumps(news_items)
+    user_content = f"<news_items>{news_items_str}</news_items>"
+    
+    # Log the final prompt
+    log_section_prompt(prompt_logger, "COHESIVE NEWSLETTER", system_prompt, user_content)
+    
+    # Prepare messages for the API call
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content}
+    ]
+    
+    try:
+        # Make API call
+        response = call_openai_parse_with_backoff(
+            client,
+            messages,
+            CohesiveNewsletterResponse,
+            model=AI_MODEL
+        )
+        
+        # Extract the subject and content elements
+        email_subject = response.choices[0].message.parsed.subject
+        content_elements = response.choices[0].message.parsed.content_elements
+        
+        # Log the response
+        log_section_response(prompt_logger, "COHESIVE NEWSLETTER", 
+                            f"Subject: {email_subject}\n\nContent:\n{json.dumps([elem.model_dump() for elem in content_elements])}")
+        
+        return content_elements, email_subject
+    except Exception as e:
+        logging.exception("Error generating cohesive newsletter text")
+        return [ContentElement(type="paragraph", content="Error generating newsletter content.")], None
 
 if __name__ == "__main__":
     main() 

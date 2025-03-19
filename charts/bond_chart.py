@@ -47,11 +47,11 @@ def get_beyond_meat_bond_chart() -> None:
         chart_container = wait.until(EC.presence_of_element_located((By.ID, "DetailChart")))
         
         # Give the page more time to completely load and render the chart
-        time.sleep(5)
+        time.sleep(10)
         
         # Scroll to make the chart visible before interacting
         driver.execute_script("arguments[0].scrollIntoView(true);", chart_container)
-        time.sleep(2)
+        time.sleep(10)
         
         # Try to select 1Y (1 Year) time period
         try:
@@ -61,7 +61,7 @@ def get_beyond_meat_bond_chart() -> None:
             
             # Use JavaScript to click the tab
             driver.execute_script("arguments[0].click();", one_year_tab)
-            time.sleep(3)  # Wait for the chart to update
+            time.sleep(10)  # Wait for the chart to update
         except Exception as e:
             logging.warning(f"Could not click 1y tab: {e}")
         
@@ -126,7 +126,7 @@ def get_beyond_meat_bond_chart() -> None:
                 font = ImageFont.load_default()
             
             # Draw the title
-            title_text = "Beyond Meat Bond Prices"
+            title_text = "Beyond Meat Bond Price"
             text_width = draw.textlength(title_text, font=font) if hasattr(draw, 'textlength') else font.getlength(title_text)
             position = ((width - text_width) // 2, 10)  # Center the title
             

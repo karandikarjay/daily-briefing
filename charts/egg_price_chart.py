@@ -6,7 +6,6 @@ This module retrieves and processes USDA egg price data from a PDF report.
 
 import logging
 import os
-import io
 import requests
 import fitz  # PyMuPDF
 from PIL import Image

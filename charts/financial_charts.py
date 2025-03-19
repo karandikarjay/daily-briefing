@@ -13,7 +13,7 @@ from config import TICKERS, CHART_STYLE, CHART_COLOR, GRID_COLOR, BACKGROUND_COL
 def create_charts() -> None:
     """
     Creates charts for a set of financial tickers using yfinance data.
-    Saves the charts as image files.
+    Saves the charts as image files with informative titles.
     """
     plt.style.use(CHART_STYLE)
 
@@ -44,8 +44,15 @@ def create_charts() -> None:
                      fontsize=14, color=CHART_COLOR,
                      ha='left', va='center')
 
-        # We can simply use the display_name for the title
-        title = f"{info['display_name']}"
+        # Updated titles to match the tone
+        if ticker == 'BYND':
+            title = "Beyond Meat Stock Price"
+        elif ticker == 'OTLY':
+            title = "Oatly Stock Price"
+        elif ticker == '^GSPC':
+            title = "S&P 500"
+        else:
+            title = f"{info['display_name']}"
             
         plt.title(title, color=CHART_COLOR, fontsize=18, pad=20, fontweight='bold')
         

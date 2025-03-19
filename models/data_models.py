@@ -4,30 +4,32 @@ Data models for the Daily Briefing application.
 This module defines Pydantic models used for structured data throughout the application.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Union
 from pydantic import BaseModel
 
-class ArticleBulletPoint(BaseModel):
-    """Model for article-based bullet points."""
-    headline: str
-    one_sentence_summary: str
+class NewsItem(BaseModel):
+    """Model for a single news item."""
+    title: str
+    description: str
     source_name: str
-    url: str
+    source_link: Optional[str] = None  # URL or None for emails
+    source_type: str  # "article" or "email"
+    email_sender: Optional[str] = None
+    email_subject: Optional[str] = None
 
-class EmailBulletPoint(BaseModel):
-    """Model for email-based bullet points."""
-    headline: str
-    one_sentence_summary: str
-    sender: str
-    subject: str
+class TopicNewsResponse(BaseModel):
+    """Response model for news items by topic."""
+    news_items: List[NewsItem]
 
-class ArticleBulletPointsResponse(BaseModel):
-    """Response model for article-based bullet points."""
-    bullet_points: List[ArticleBulletPoint]
+class ContentElement(BaseModel):
+    """Model for a content element in the newsletter."""
+    type: str  # "paragraph", "heading", or "image_description"
+    content: str  # Raw text without HTML tags
 
-class EmailBulletPointsResponse(BaseModel):
-    """Response model for email-based bullet points."""
-    bullet_points: List[EmailBulletPoint]
+class CohesiveNewsletterResponse(BaseModel):
+    """Response model for the final cohesive newsletter."""
+    subject: str  # Custom email subject
+    content_elements: List[ContentElement]  # List of paragraphs, headings, and image descriptions
 
 class ArticleContent(BaseModel):
     """Model for article content."""

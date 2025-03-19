@@ -36,8 +36,7 @@ def get_fast_email_content() -> List[Dict[str, str]]:
         email_ids = data[0].split()
 
         latest_datetime = None
-        email_dates = []
-
+        
         # First pass: find the most recent email timestamp
         for email_id in email_ids:
             status, msg_data = mail.fetch(email_id, "(BODY.PEEK[HEADER])")

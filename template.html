@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Daily Briefing</title>
+  <title>Your Daily Briefing</title>
   <style>
     /* Basic reset for emails */
     body, p, h1, h2, ul, li {
@@ -11,58 +11,97 @@
     }
     body {
       background-color: #f5f5f5;
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       line-height: 1.6;
       padding: 20px;
+      color: #333;
     }
     .container {
       max-width: 600px;
       margin: 0 auto;
       background-color: #ffffff;
+      border-radius: 8px;
       border: 1px solid #e0e0e0;
       padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     }
     .header {
       text-align: center;
-      background-color: #1e3d59; /* Dark blue header */
+      background-color: #1e3d59; /* Dark navy blue from Beyond Meat bond chart */
       color: #ffffff;
       padding: 20px;
+      border-radius: 6px;
+      margin-bottom: 25px;
     }
     .header h1 {
       font-size: 28px;
-      margin-bottom: 0;
+      margin-bottom: 5px;
+      font-weight: 700;
     }
-    .section {
+    .header p {
+      font-style: italic;
+      opacity: 0.9;
+    }
+    .content {
       margin: 20px 0;
     }
-    .section h2 {
-      font-size: 20px;
-      color: #1e3d59; /* Dark blue section headers */
-      border-bottom: 2px solid #1e3d59; /* Dark blue border */
-      padding-bottom: 5px;
+    .content p {
+      margin-bottom: 15px;
+      font-size: 16px;
+    }
+    .content h2 {
+      color: #1e3d59; /* Dark navy blue from Beyond Meat bond chart */
+      margin-top: 25px;
       margin-bottom: 10px;
+      border-bottom: 2px solid #f0f0f0;
+      padding-bottom: 5px;
     }
-    .section ul {
-      list-style-type: disc;
-      margin-left: 20px;
-    }
-    .section ul li {
-      margin-bottom: 8px;
+    .content a {
+      color: #1e3d59; /* Dark navy blue from Beyond Meat bond chart */
+      text-decoration: underline;
     }
     .footer {
       text-align: center;
-      font-size: 12px;
+      font-size: 14px;
       color: #777;
       border-top: 1px solid #e0e0e0;
-      padding-top: 10px;
-      margin-top: 20px;
+      padding-top: 15px;
+      margin-top: 30px;
     }
-    /* Optional: adjust image styling for charts */
+    /* Financial charts styling */
+    .financial-charts {
+      background-color: #f9f9f9;
+      border-radius: 6px;
+      padding: 15px;
+      margin-top: 25px;
+    }
+    .financial-charts h2 {
+      color: #1e3d59; /* Dark navy blue from Beyond Meat bond chart */
+      text-align: center;
+      margin-bottom: 15px;
+    }
     .financial-charts img {
       width: 100%;
       max-width: 600px;
-      margin-bottom: 10px;
+      margin-bottom: 15px;
+      border-radius: 4px;
       border: 1px solid #ddd;
+    }
+    /* Quote styling */
+    blockquote {
+      border-left: 4px solid #1e3d59; /* Dark navy blue from Beyond Meat bond chart */
+      padding-left: 15px;
+      margin: 15px 0;
+      font-style: italic;
+      color: #555;
+    }
+    /* Emphasis */
+    em {
+      color: #1e3d59; /* Dark navy blue from Beyond Meat bond chart */
+    }
+    strong {
+      color: #333;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -70,57 +109,27 @@
   <div class="container">
     <!-- Header -->
     <div class="header">
-      <h1>Daily Briefing</h1>
+      <h1>Your Daily Briefing</h1>
+      <p>Insights that matter, delivered with clarity</p>
     </div>
     
-    <!-- Alternative Protein Section -->
-    <div class="section">
-      <h2>Alternative Protein</h2>
-      <ul>
-        <li><strong>{alternative_protein_headline_1}:</strong> {alternative_protein_one_sentence_summary_1} <a href="{alternative_protein_url_1}">{alternative_protein_source_name_1}</a></li>
-        <li><strong>{alternative_protein_headline_2}:</strong> {alternative_protein_one_sentence_summary_2} <a href="{alternative_protein_url_2}">{alternative_protein_source_name_2}</a></li>
-        <li><strong>{alternative_protein_headline_3}:</strong> {alternative_protein_one_sentence_summary_3} <a href="{alternative_protein_url_3}">{alternative_protein_source_name_3}</a></li>
-      </ul>
-    </div>
-    
-    <!-- Vegan Movement Section -->
-    <div class="section">
-      <h2>Vegan Movement</h2>
-      <ul>
-        <li><strong>{vegan_movement_headline_1}:</strong> {vegan_movement_one_sentence_summary_1} (Email from {vegan_movement_sender_1} with subject "{vegan_movement_subject_1}")</li>
-        <li><strong>{vegan_movement_headline_2}:</strong> {vegan_movement_one_sentence_summary_2} (Email from {vegan_movement_sender_2} with subject "{vegan_movement_subject_2}")</li>
-        <li><strong>{vegan_movement_headline_3}:</strong> {vegan_movement_one_sentence_summary_3} (Email from {vegan_movement_sender_3} with subject "{vegan_movement_subject_3}")</li>
-      </ul>
-    </div>
-
-    <!-- Effective Altruism Section -->
-    <div class="section">
-      <h2>Effective Altruism</h2>
-      <ul>
-        <li><strong>{effective_altruism_headline_1}:</strong> {effective_altruism_one_sentence_summary_1} <a href="{effective_altruism_url_1}">{effective_altruism_source_name_1}</a></li>
-        <li><strong>{effective_altruism_headline_2}:</strong> {effective_altruism_one_sentence_summary_2} <a href="{effective_altruism_url_2}">{effective_altruism_source_name_2}</a></li>
-        <li><strong>{effective_altruism_headline_3}:</strong> {effective_altruism_one_sentence_summary_3} <a href="{effective_altruism_url_3}">{effective_altruism_source_name_3}</a></li>
-      </ul>
-    </div>
-    
-    <!-- AI Section -->
-    <div class="section">
-      <h2>AI</h2>
-      <ul>
-        <li><strong>{ai_headline_1}:</strong> {ai_one_sentence_summary_1} <a href="{ai_url_1}">{ai_source_name_1}</a></li>
-        <li><strong>{ai_headline_2}:</strong> {ai_one_sentence_summary_2} <a href="{ai_url_2}">{ai_source_name_2}</a></li>
-        <li><strong>{ai_headline_3}:</strong> {ai_one_sentence_summary_3} <a href="{ai_url_3}">{ai_source_name_3}</a></li>
-      </ul>
+    <!-- Main Content - Cohesive Newsletter Text -->
+    <div class="content">
+      {newsletter_content}
     </div>
 
     <!-- Financial Charts Section -->
-    <div class="section financial-charts">
-      <h2>Financial Charts</h2>
+    <div class="financial-charts">
+      <h2>Financial Insights</h2>
       <img src="cid:bynd-chart" alt="Beyond Meat Chart">
       <img src="cid:beyond-meat-bond-chart" alt="Beyond Meat Bond Prices">
       <img src="cid:otly-chart" alt="Oatly Chart">
       <img src="cid:sp500-chart" alt="S&P 500 Chart">
       <img src="cid:egg-price-chart" alt="USDA Egg Price Chart">
+    </div>
+    
+    <div class="footer">
+      <p>This briefing was curated specifically for you, combining data and insight.</p>
     </div>
   </div>
 </body>

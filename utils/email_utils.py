@@ -10,7 +10,7 @@ import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime
 from config import (
     GOOGLE_USERNAME, GOOGLE_PASSWORD, RECIPIENT_EMAILS,
@@ -18,20 +18,28 @@ from config import (
     EASTERN_ZONE
 )
 
-def send_email(html_content: str, send_to_everyone: bool = False) -> bool:
+def send_email(html_content: str, subject: str = None, send_to_everyone: bool = False, 
+               additional_images: Optional[Dict[str, str]] = None) -> bool:
     """
     Sends an email with the daily briefing content.
     
     Args:
         html_content (str): The HTML content of the email
+        subject (str, optional): Custom subject line for the email
         send_to_everyone (bool): Whether to send to all recipients or just the sender
+        additional_images (Dict[str, str], optional): Dictionary of image IDs to file paths for DALL-E images
         
     Returns:
         bool: True if the email was sent successfully, False otherwise
     """
     # Get today's date in Eastern Time
     today = datetime.now(EASTERN_ZONE).strftime("%A, %B %d, %Y")
-    subject = f"Daily Briefing - {today}"
+    
+    # Use custom subject if provided, otherwise use default
+    if subject:
+        email_subject = subject
+    else:
+        email_subject = f"Daily Briefing - {today}"
     
     # Determine recipients based on the send_to_everyone flag
     recipients = [GOOGLE_USERNAME]
@@ -40,7 +48,7 @@ def send_email(html_content: str, send_to_everyone: bool = False) -> bool:
     try:
         # Create message container
         msg = MIMEMultipart('related')
-        msg['Subject'] = subject
+        msg['Subject'] = email_subject
         msg['From'] = GOOGLE_USERNAME
         msg['To'] = GOOGLE_USERNAME
         if bcc_recipients:
@@ -54,7 +62,7 @@ def send_email(html_content: str, send_to_everyone: bool = False) -> bool:
         html_part = MIMEText(html_content, 'html')
         msg_alternative.attach(html_part)
         
-        # Attach images
+        # Attach chart images
         for image_path, content_id in CHART_CONTENT_IDS.items():
             full_path = CHART_PATHS.get(image_path)
             if full_path and os.path.exists(full_path):
@@ -65,6 +73,18 @@ def send_email(html_content: str, send_to_everyone: bool = False) -> bool:
                     msg.attach(img)
             else:
                 logging.warning(f"Image file not found: {full_path}")
+        
+        # Attach DALL-E generated images
+        if additional_images:
+            for image_id, image_path in additional_images.items():
+                if os.path.exists(image_path):
+                    with open(image_path, 'rb') as img_file:
+                        img = MIMEImage(img_file.read())
+                        img.add_header('Content-ID', f'<{image_id}>')
+                        img.add_header('Content-Disposition', 'inline', filename=os.path.basename(image_path))
+                        msg.attach(img)
+                else:
+                    logging.warning(f"DALL-E image file not found: {image_path}")
         
         # Connect to SMTP server
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
@@ -77,6 +97,17 @@ def send_email(html_content: str, send_to_everyone: bool = False) -> bool:
         server.quit()
         
         logging.info(f"Email sent successfully to {len(all_recipients)} recipient(s)")
+        
+        # Clean up temporary image files
+        if additional_images:
+            for image_path in additional_images.values():
+                try:
+                    if os.path.exists(image_path):
+                        os.remove(image_path)
+                        logging.info(f"Removed temporary image file: {image_path}")
+                except Exception as e:
+                    logging.warning(f"Error removing temporary image file: {e}")
+        
         return True
         
     except Exception as e:
