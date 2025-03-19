@@ -56,9 +56,14 @@ TEMPLATE_PATH = os.path.join(SCRIPT_DIR, "template.html")
 USDA_PDF_URL = "https://www.ams.usda.gov/mnreports/ams_3725.pdf"
 EGG_PRICE_CHART_PATH = os.path.join(SCRIPT_DIR, 'egg-price-chart.png')
 
+# Beyond Meat Bond Chart URL
+BEYOND_MEAT_BOND_URL = "https://markets.businessinsider.com/bonds/beyond_meat_incdl-zero_convnts_202227-bond-2027-us08862eab56"
+BEYOND_MEAT_BOND_CHART_PATH = os.path.join(SCRIPT_DIR, 'beyond-meat-bond-chart.png')
+
 # Update the chart paths dictionary
 CHART_PATHS = {
     'bynd-chart.png': os.path.join(SCRIPT_DIR, 'bynd-chart.png'),
+    'beyond-meat-bond-chart.png': BEYOND_MEAT_BOND_CHART_PATH,
     'otly-chart.png': os.path.join(SCRIPT_DIR, 'otly-chart.png'),
     'sp500-chart.png': os.path.join(SCRIPT_DIR, 'sp500-chart.png'),
     'egg-price-chart.png': EGG_PRICE_CHART_PATH,
@@ -67,6 +72,7 @@ CHART_PATHS = {
 # Update chart content IDs for email embedding
 CHART_CONTENT_IDS = {
     'bynd-chart.png': '<bynd-chart>',
+    'beyond-meat-bond-chart.png': '<beyond-meat-bond-chart>',
     'otly-chart.png': '<otly-chart>',
     'sp500-chart.png': '<sp500-chart>',
     'egg-price-chart.png': '<egg-price-chart>',

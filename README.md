@@ -1,4 +1,4 @@
-# Daily Briefing Application
+# Daily Briefing
 
 A Python application that automatically generates and delivers a personalized daily briefing email with curated content from various sources including news sites, RSS feeds, emails, and financial data.
 
@@ -24,9 +24,11 @@ The Daily Briefing application collects content from multiple sources, processes
   - Create summaries that highlight key developments
 
 - **Financial Charts**: Generates visual charts for financial data including:
-  - Beyond Meat (BYND)
-  - Oatly (OTLY)
+  - Beyond Meat (BYND) stock price
+  - Beyond Meat bond price
+  - Oatly (OTLY) stock price
   - S&P 500
+  - USDA egg prices
 
 - **Email Delivery**: Sends a formatted HTML email with:
   - Organized sections for different topics

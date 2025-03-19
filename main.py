@@ -28,7 +28,7 @@ from utils.email_utils import send_email
 from content import get_content
 
 # Import chart generation
-from charts import create_charts, extract_egg_price_chart
+from charts import create_charts, extract_egg_price_chart, get_beyond_meat_bond_chart
 
 # Import models
 from models.data_models import (
@@ -117,8 +117,9 @@ def main():
         # Fallback to a simple HTML message
         newsletter = "<html><body><h1>Daily Briefing</h1><p>There was an error generating the newsletter content.</p></body></html>"
 
-    # Create financial charts and egg price chart, then send the email newsletter
+    # Create financial charts, beyond meat bond chart, egg price chart, then send the email newsletter
     create_charts()
+    get_beyond_meat_bond_chart()
     extract_egg_price_chart()
     send_email(newsletter, send_to_everyone)
     logging.info("Daily briefing process completed successfully.")
