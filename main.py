@@ -261,7 +261,7 @@ def generate_cohesive_newsletter(client: OpenAI, news_items: List[Dict], prompt_
         "\n- Base each image directly on the most visually interesting or important news item from that section"
         "\n- Create detailed, vivid descriptions (1-3 sentences) focusing on visual elements that would enhance understanding of the news item"
         "\n- Position image descriptions after discussing the relevant news item, not before"
-        "\n- Avoid requesting text in the images"
+        "\n- Avoid requesting infographics or text in the images"
         "\n- Use a photorealistic style unless specifically noting otherwise"
         
         "\n\nDO include HTML formatting in the content text itself as needed (e.g., <a> tags for links, <strong>, <em>, etc.)."
