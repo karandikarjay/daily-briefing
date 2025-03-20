@@ -163,6 +163,13 @@ def generate_dalle_images(client: OpenAI, newsletter_elements: List[ContentEleme
                 # Get the prompt (content) and save the caption
                 prompt = element.content
                 
+                # Log the DALL-E prompt to the prompt logger
+                logging.getLogger('prompts').info(
+                    f"\n{'='*80}\nDALL-E PROMPT {image_id}\n{'='*80}\n"
+                    f"{prompt}\n"
+                    f"{'='*80}\n"
+                )
+                
                 # Prepare image generation parameters
                 params = {
                     "model": "dall-e-3",
@@ -181,6 +188,14 @@ def generate_dalle_images(client: OpenAI, newsletter_elements: List[ContentEleme
                 
                 # Get image URL
                 image_url = response.data[0].url
+                
+                # Log the DALL-E response to the prompt logger
+                if hasattr(response.data[0], 'revised_prompt') and response.data[0].revised_prompt:
+                    logging.getLogger('prompts').info(
+                        f"\n{'='*80}\nDALL-E REVISED PROMPT {image_id}\n{'='*80}\n"
+                        f"{response.data[0].revised_prompt}\n"
+                        f"{'='*80}\n"
+                    )
                 
                 # Download the image
                 import requests
