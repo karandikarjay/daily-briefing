@@ -160,10 +160,13 @@ def generate_dalle_images(client: OpenAI, newsletter_elements: List[ContentEleme
             try:
                 logging.info(f"Generating DALL-E image for: {element.content[:50]}...")
                 
+                # Get the prompt (content) and save the caption
+                prompt = element.content
+                
                 # Prepare image generation parameters
                 params = {
                     "model": "dall-e-3",
-                    "prompt": element.content,
+                    "prompt": prompt,
                     "size": "1792x1024",
                     "quality": "standard",
                     "n": 1,
@@ -255,6 +258,7 @@ def generate_cohesive_newsletter(client: OpenAI, news_items: List[Dict], prompt_
         "\n\nFor content that would be enclosed in <p> tags, mark it as 'paragraph'."
         "\nFor content that would be enclosed in <h2> tags, mark it as 'heading'."
         "\nFor visual prompts that would be used to generate images with DALL-E 3, mark as 'image_description'. "
+        
         "\n\nFor image descriptions:"
         "\n- Include 3-4 image descriptions throughout the newsletter at appropriate points"
         "\n- Make each image description HIGHLY SPECIFIC to the actual news items you just mentioned in the preceding paragraphs"
@@ -263,6 +267,9 @@ def generate_cohesive_newsletter(client: OpenAI, news_items: List[Dict], prompt_
         "\n- Position image descriptions after discussing the relevant news item, not before"
         "\n- Avoid requesting infographics or text in the images"
         "\n- Use a photorealistic style unless specifically noting otherwise"
+        "\n- For each image description, also create a brief caption (1-2 sentences) that will appear below the image"
+        "\n- The caption should explain what the image represents"
+        "\n- Do NOT make the caption sound like it's describing a real photograph or actual event"
         
         "\n\nDO include HTML formatting in the content text itself as needed (e.g., <a> tags for links, <strong>, <em>, etc.)."
         "\nDO NOT include the structural <p> and <h2> tags - we will add those programmatically based on your type markers."

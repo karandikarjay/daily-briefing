@@ -33,7 +33,13 @@ def generate_email_html(template: str, newsletter_elements: List[ContentElement]
         elif element.type == "image_description":
             # For image descriptions, we'll add a div with the image
             image_id = element.content
-            newsletter_html += f'<div class="generated-image"><img src="cid:{image_id}" alt="Generated image related to newsletter content" style="width:100%;max-width:800px;height:auto;margin:15px auto;display:block;border-radius:8px;"></div>\n'
+            
+            # Check if there's a caption
+            caption_html = ""
+            if element.caption:
+                caption_html = f'<p class="image-caption"><em>{element.caption}</em></p>'
+            
+            newsletter_html += f'<div class="generated-image"><img src="cid:{image_id}" alt="Generated image related to newsletter content" style="width:100%;max-width:800px;height:auto;margin:15px auto;display:block;border-radius:8px;">{caption_html}</div>\n'
     
     # Replace the newsletter content placeholder with the actual newsletter text
     html = template.replace("{newsletter_content}", newsletter_html)

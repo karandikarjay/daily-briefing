@@ -25,6 +25,7 @@ class ContentElement(BaseModel):
     """Model for a content element in the newsletter."""
     type: str  # "paragraph", "heading", or "image_description"
     content: str  # Raw text without HTML tags
+    caption: Optional[str] = None  # Caption for image_description elements
 
 class CohesiveNewsletterResponse(BaseModel):
     """Response model for the final cohesive newsletter."""
