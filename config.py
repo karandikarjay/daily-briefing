@@ -158,3 +158,11 @@ VEGCONOMIST_RSS_URL = "https://vegconomist.com/feed/"
 EA_FORUM_RSS_URL = "https://forum.effectivealtruism.org/feed.xml?view=frontpage-rss&karmaThreshold=2"
 RUNDOWN_RSS_URL = "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml"
 FAST_EMAIL = "fast-farm-animal-strategic-team@googlegroups.com"
+
+# Add Stability AI API key to the environment variables section
+STABILITY_API_KEY = os.getenv("STABILITY_API_KEY")
+
+# Add Stability AI configuration
+STABILITY_API_URL = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
+STABILITY_IMAGE_ASPECT_RATIO = "16:9"
+STABILITY_IMAGE_OUTPUT_FORMAT = "png"

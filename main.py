@@ -13,16 +13,18 @@ import logging
 import os
 from openai import OpenAI
 from typing import Dict, List, Optional
+import requests
 
 # Import configuration
 from config import (
     OPENAI_API_KEY, AI_MODEL, SECTIONS, TEMPLATE_PATH,
-    USER_PERSONALITY, NEWSLETTER_TONE
+    USER_PERSONALITY, NEWSLETTER_TONE,
+    STABILITY_API_KEY, STABILITY_API_URL, STABILITY_IMAGE_ASPECT_RATIO, STABILITY_IMAGE_OUTPUT_FORMAT
 )
 
 # Import utilities
 from utils.logging_setup import setup_logging, log_section_prompt, log_section_response, log_newsletter
-from utils.api_utils import num_tokens_from_string, call_openai_parse_with_backoff, call_openai_api_with_backoff
+from utils.api_utils import num_tokens_from_string, call_openai_parse_with_backoff, call_openai_api_with_backoff, call_stability_api_with_backoff
 from utils.html_utils import generate_email_html
 from utils.email_utils import send_email
 
@@ -106,8 +108,8 @@ def main():
         if all_news_items:
             newsletter_elements, email_subject = generate_cohesive_newsletter(client, all_news_items, prompt_logger)
             
-            # Generate images for any image descriptions
-            image_paths = generate_dalle_images(client, newsletter_elements)
+            # Generate images for any image descriptions using Stability AI
+            image_paths = generate_stability_images(newsletter_elements)
             
             # Read the HTML newsletter template
             with open(TEMPLATE_PATH, "r", encoding="utf-8") as file:
@@ -138,12 +140,11 @@ def main():
     send_email(newsletter, email_subject, send_to_everyone, image_paths)
     logging.info("Daily briefing process completed successfully.")
 
-def generate_dalle_images(client: OpenAI, newsletter_elements: List[ContentElement]) -> Dict[str, str]:
+def generate_stability_images(newsletter_elements: List[ContentElement]) -> Dict[str, str]:
     """
-    Generates images using DALL-E 3 for any image_description elements.
+    Generates images using Stability AI for any image_description elements.
     
     Args:
-        client: The OpenAI client
         newsletter_elements: List of newsletter content elements
         
     Returns:
@@ -158,72 +159,61 @@ def generate_dalle_images(client: OpenAI, newsletter_elements: List[ContentEleme
             image_counter += 1
             
             try:
-                logging.info(f"Generating DALL-E image for: {element.content[:50]}...")
+                logging.info(f"Generating Stability AI image for: {element.content[:50]}...")
                 
                 # Get the prompt (content) and save the caption
                 prompt = element.content
                 
-                # Log the DALL-E prompt to the prompt logger
+                # Log the Stability AI prompt to the prompt logger
                 logging.getLogger('prompts').info(
-                    f"\n{'='*80}\nDALL-E PROMPT {image_id}\n{'='*80}\n"
+                    f"\n{'='*80}\nSTABILITY AI PROMPT {image_id}\n{'='*80}\n"
                     f"{prompt}\n"
                     f"{'='*80}\n"
                 )
-                
-                # Prepare image generation parameters
-                params = {
-                    "model": "dall-e-3",
-                    "prompt": prompt,
-                    "size": "1792x1024",
-                    "quality": "standard",
-                    "n": 1,
-                }
-                
-                # Generate image with DALL-E 3 using the rate limiting utility
-                response = call_openai_api_with_backoff(
-                    client,
-                    api_call=lambda: client.images.generate(**params),
-                    resource_type="images"
-                )
-                
-                # Get image URL
-                image_url = response.data[0].url
-                
-                # Log the DALL-E response to the prompt logger
-                if hasattr(response.data[0], 'revised_prompt') and response.data[0].revised_prompt:
-                    logging.getLogger('prompts').info(
-                        f"\n{'='*80}\nDALL-E REVISED PROMPT {image_id}\n{'='*80}\n"
-                        f"{response.data[0].revised_prompt}\n"
-                        f"{'='*80}\n"
-                    )
-                
-                # Download the image
-                import requests
-                from PIL import Image
-                from io import BytesIO
                 
                 # Create a temporary directory if it doesn't exist
                 temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp_images")
                 os.makedirs(temp_dir, exist_ok=True)
                 
-                # Download and save the image
-                response = requests.get(image_url)
-                img = Image.open(BytesIO(response.content))
-                
-                # Save the image to a file
+                # Define the output image path
                 image_path = os.path.join(temp_dir, f"{image_id}.png")
-                img.save(image_path)
                 
+                # Prepare the API call function for Stability AI
+                def make_stability_api_call():
+                    return requests.post(
+                        STABILITY_API_URL,
+                        headers={
+                            "authorization": f"Bearer {STABILITY_API_KEY}",
+                            "accept": "image/*"
+                        },
+                        files={"none": ''},
+                        data={
+                            "prompt": prompt,
+                            "output_format": STABILITY_IMAGE_OUTPUT_FORMAT,
+                            "aspect_ratio": STABILITY_IMAGE_ASPECT_RATIO,
+                        },
+                    )
+                
+                # Make the API request with backoff
+                response = call_stability_api_with_backoff(
+                    api_call=make_stability_api_call,
+                    resource_type="stability_image"
+                )
+                
+                # Save the image
+                with open(image_path, 'wb') as file:
+                    file.write(response.content)
+                    
                 # Add the image path to the dictionary
                 image_paths[image_id] = image_path
                 
-                logging.info(f"DALL-E image saved to {image_path}")
+                logging.info(f"Stability AI image saved to {image_path}")
                 
                 # Update the element content to include the image ID for reference
                 element.content = image_id
-                
+                    
             except Exception as e:
-                logging.exception(f"Error generating DALL-E image: {e}")
+                logging.exception(f"Error generating Stability AI image: {e}")
     
     return image_paths
 
@@ -272,7 +262,7 @@ def generate_cohesive_newsletter(client: OpenAI, news_items: List[Dict], prompt_
         "\n2. A list of content elements, each marked as either 'paragraph', 'heading', or 'image_description'"
         "\n\nFor content that would be enclosed in <p> tags, mark it as 'paragraph'."
         "\nFor content that would be enclosed in <h2> tags, mark it as 'heading'."
-        "\nFor visual prompts that would be used to generate images with DALL-E 3, mark as 'image_description'. "
+        "\nFor visual prompts that would be used to generate images with Stability AI, mark as 'image_description'. "
         
         "\n\nFor image descriptions:"
         "\n- Include 3-4 image descriptions throughout the newsletter at appropriate points"
@@ -280,7 +270,9 @@ def generate_cohesive_newsletter(client: OpenAI, news_items: List[Dict], prompt_
         "\n- Base each image directly on the most visually interesting or important news item from that section"
         "\n- Create detailed, vivid descriptions (1-3 sentences) focusing on visual elements that would enhance understanding of the news item"
         "\n- Position image descriptions after discussing the relevant news item, not before"
-        "\n- Avoid requesting infographics or text in the images"
+        "\n- IMPORTANT: Avoid requesting infographics, charts, diagrams, or any form of text in the images"
+        "\n- IMPORTANT: Focus on photorealistic scenes, objects, or environments rather than data visualizations"
+        "\n- IMPORTANT: Describe imagery that can be purely visual without relying on text to convey meaning"
         "\n- Use a photorealistic style unless specifically noting otherwise"
         "\n- For each image description, also create a brief caption (1-2 sentences) that will appear below the image"
         "\n- The caption should explain what the image represents"

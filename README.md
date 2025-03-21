@@ -23,6 +23,8 @@ The Daily Briefing application collects content from multiple sources, processes
   - Generate concise bullet points for each section
   - Create summaries that highlight key developments
 
+- **AI Image Generation**: Uses Stability AI to generate relevant images for newsletter content
+
 - **Financial Charts**: Generates visual charts for financial data including:
   - Beyond Meat (BYND) stock price
   - Beyond Meat bond price
@@ -32,6 +34,7 @@ The Daily Briefing application collects content from multiple sources, processes
 
 - **Email Delivery**: Sends a formatted HTML email with:
   - Organized sections for different topics
+  - AI-generated images
   - Embedded financial charts
   - Links to original sources
   - Option to send to a single recipient or a distribution list
