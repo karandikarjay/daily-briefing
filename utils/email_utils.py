@@ -51,8 +51,6 @@ def send_email(html_content: str, subject: str = None, send_to_everyone: bool = 
         msg['Subject'] = email_subject
         msg['From'] = GOOGLE_USERNAME
         msg['To'] = GOOGLE_USERNAME
-        if bcc_recipients:
-            msg['Bcc'] = ", ".join(bcc_recipients)
         
         # Attach HTML content
         msg_alternative = MIMEMultipart('alternative')
