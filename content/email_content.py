@@ -33,16 +33,29 @@ def get_fast_email_content() -> List[Dict[str, str]]:
         mail.login(GOOGLE_USERNAME, GOOGLE_PASSWORD)
         mail.select("inbox")
 
-        # Calculate the date for search (two weeks ago initially to get enough emails to filter)
-        two_weeks_ago = (end_time - timedelta(weeks=2)).strftime("%d-%b-%Y")
+        # Convert the start and end dates to the format required by IMAP (DD-MMM-YYYY)
+        start_date_str = start_time.strftime("%d-%b-%Y")
+        end_date_str = end_time.strftime("%d-%b-%Y")
 
-        # Search for emails that include the specified email in any "to" or "from" field within the past two weeks
-        status, data = mail.search(None, f'(OR (TO "{search_email}" SINCE {two_weeks_ago}) (FROM "{search_email}" SINCE {two_weeks_ago}))')
+        # Create IMAP search criteria to get emails only from the specific timeframe
+        # SINCE <date> BEFORE <date+1> gets emails from a specific date
+        # We'll use SINCE start_date BEFORE end_date+1 to cover the full range
+        next_day_after_end = (end_time + timedelta(days=1)).strftime("%d-%b-%Y")
+        
+        # Search for emails that include the specified email in any "to" or "from" field 
+        # within the exact date range
+        search_criteria = f'(OR (TO "{search_email}" SINCE {start_date_str} BEFORE {next_day_after_end}) ' \
+                         f'(FROM "{search_email}" SINCE {start_date_str} BEFORE {next_day_after_end}))'
+        
+        logging.info(f"IMAP search criteria: {search_criteria}")
+        status, data = mail.search(None, search_criteria)
+        
         email_ids = data[0].split()
+        logging.info(f"Found {len(email_ids)} emails matching the date and address criteria")
 
         emails_content = []
 
-        # Fetch emails within the time window
+        # Process each email that matches our criteria
         for email_id in email_ids:
             status, msg_data = mail.fetch(email_id, "(RFC822)")
             for response_part in msg_data:
@@ -50,6 +63,7 @@ def get_fast_email_content() -> List[Dict[str, str]]:
                     msg = email.message_from_bytes(response_part[1])
                     date_tuple = parsedate_to_datetime(msg["Date"])
                     
+                    # Double-check the date is in our range (in case IMAP search wasn't precise enough)
                     if start_time <= date_tuple <= end_time:
                         subject, encoding = decode_header(msg["Subject"])[0]
                         if isinstance(subject, bytes):
