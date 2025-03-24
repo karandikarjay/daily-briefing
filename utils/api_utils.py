@@ -12,6 +12,8 @@ import tiktoken
 from typing import List, Dict, Any, Type
 from openai import OpenAI
 from pydantic import BaseModel
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from config import AI_MODEL, MAX_RETRIES, INITIAL_RETRY_DELAY, MAX_RETRY_DELAY, MAX_TOKENS_PER_REQUEST
 
 def num_tokens_from_string(string: str, model: str = "gpt-4") -> int:
@@ -239,4 +241,37 @@ def call_openai_parse_with_backoff(
             response_format=response_model
         ),
         resource_type="completions"
-    ) 
+    )
+
+def get_content_collection_timeframe():
+    """
+    Determines the appropriate timeframe for content collection based on the current day.
+    
+    Returns:
+        tuple: (start_datetime, end_datetime) - both timezone aware (Eastern Time)
+    """
+    
+    # Get current time in Eastern Time
+    eastern_tz = ZoneInfo("America/New_York")
+    now = datetime.now(eastern_tz)
+    
+    # Set end time to 6am today
+    end_datetime = now.replace(hour=6, minute=0, second=0, microsecond=0)
+    
+    # Determine start date based on current day of the week
+    weekday = now.weekday()  # 0=Monday, 6=Sunday
+    
+    # If today is Saturday (5), Sunday (6), or Monday (0)
+    if weekday in [0, 5, 6]:
+        # Go back to Friday 6am (or previous Friday if it's already past 6am on Friday)
+        days_to_friday = {
+            0: 3,  # Monday -> go back 3 days to Friday
+            5: 1,  # Saturday -> go back 1 day to Friday
+            6: 2,  # Sunday -> go back 2 days to Friday
+        }
+        start_datetime = end_datetime - timedelta(days=days_to_friday[weekday])
+    else:
+        # For Tuesday through Friday, just go back 1 day (to 6am yesterday)
+        start_datetime = end_datetime - timedelta(days=1)
+    
+    return start_datetime, end_datetime 

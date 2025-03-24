@@ -139,6 +139,15 @@ The application is configured through the `config.py` file, which includes:
 
 5. **Email Delivery**: The email is sent to the specified recipients.
 
+## Content Collection Logic
+
+The application collects content based on the following time windows:
+
+- If today is Saturday, Sunday, or Monday: Content from 6am ET Friday to 6am ET today
+- For all other days: Content from 6am ET yesterday to 6am ET today
+
+This ensures that you get a comprehensive update after weekends while maintaining daily relevance during the work week.
+
 ## Logging
 
 The application generates two log files:
