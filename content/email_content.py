@@ -11,8 +11,9 @@ from email.header import decode_header
 from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
 from typing import List, Dict
-from config import GOOGLE_USERNAME, GOOGLE_PASSWORD, IMAP_SERVER, IMAP_PORT, FAST_EMAIL
+from config import GOOGLE_USERNAME, GOOGLE_PASSWORD, IMAP_SERVER, IMAP_PORT, FAST_EMAIL, TIMEZONE
 from utils.api_utils import get_content_collection_timeframe
+from datetime import timezone
 
 def get_fast_email_content() -> List[Dict[str, str]]:
     """
@@ -62,6 +63,9 @@ def get_fast_email_content() -> List[Dict[str, str]]:
                 if isinstance(response_part, tuple):
                     msg = email.message_from_bytes(response_part[1])
                     date_tuple = parsedate_to_datetime(msg["Date"])
+                    if date_tuple.tzinfo is None:
+                        date_tuple = date_tuple.replace(tzinfo=timezone.utc)
+                    date_tuple = date_tuple.astimezone(TIMEZONE)
                     
                     # Double-check the date is in our range (in case IMAP search wasn't precise enough)
                     if start_time <= date_tuple <= end_time:
@@ -80,14 +84,16 @@ def get_fast_email_content() -> List[Dict[str, str]]:
                                     emails_content.append({
                                         "subject": subject, 
                                         "body": body,
-                                        "datetime": date_tuple
+                                        "datetime": date_tuple.isoformat(),
+                                        "source_name": "FAST Email List"
                                     })
                         else:
                             body = msg.get_payload(decode=True).decode()
                             emails_content.append({
                                 "subject": subject, 
                                 "body": body,
-                                "datetime": date_tuple
+                                "datetime": date_tuple.isoformat(),
+                                "source_name": "FAST Email List"
                             })
 
         mail.logout()

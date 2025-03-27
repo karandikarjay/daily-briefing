@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from bs4 import BeautifulSoup
 from typing import List, Dict
-from config import HEADERS, GREEN_QUEEN_SITEMAP_URL
+from config import HEADERS, GREEN_QUEEN_SITEMAP_URL, TIMEZONE
 from utils.api_utils import get_content_collection_timeframe
 
 def get_gq_sitemap_urls(sitemap_index_url: str) -> List[str]:
@@ -74,6 +74,7 @@ def get_latest_articles(sitemap_urls: List[str], source_name: str) -> List[tuple
                         lastmod_dt = datetime.fromisoformat(lastmod_elem.text)
                         if lastmod_dt.tzinfo is None:
                             lastmod_dt = lastmod_dt.replace(tzinfo=timezone.utc)
+                        lastmod_dt = lastmod_dt.astimezone(TIMEZONE)
 
                         if start_time <= lastmod_dt <= end_time:
                             all_urls.append((loc_elem.text, lastmod_dt))
@@ -111,10 +112,11 @@ def get_gq_article_content(urls: List[str]) -> List[Dict[str, str]]:
             content_tag = soup.find('div', class_='entry-content')
             article_text = content_tag.get_text(separator='\n', strip=True) if content_tag else ""
             articles.append({
-                "url": url, 
-                "title": title, 
+                "url": url,
+                "title": title,
                 "article": article_text,
-                "datetime": lastmod_dt
+                "datetime": lastmod_dt.isoformat(),
+                "source_name": "Green Queen"
             })
         except Exception as e:
             logging.exception(f"Error processing article URL: {url}")

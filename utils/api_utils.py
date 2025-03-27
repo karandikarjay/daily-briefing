@@ -14,7 +14,7 @@ from openai import OpenAI
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from config import AI_MODEL, MAX_RETRIES, INITIAL_RETRY_DELAY, MAX_RETRY_DELAY, MAX_TOKENS_PER_REQUEST
+from config import AI_MODEL, MAX_RETRIES, INITIAL_RETRY_DELAY, MAX_RETRY_DELAY, MAX_TOKENS_PER_REQUEST, TIMEZONE
 
 def num_tokens_from_string(string: str, model: str = "gpt-4") -> int:
     """
@@ -248,12 +248,10 @@ def get_content_collection_timeframe():
     Determines the appropriate timeframe for content collection based on the current day.
     
     Returns:
-        tuple: (start_datetime, end_datetime) - both timezone aware (Eastern Time)
+        tuple: (start_datetime, end_datetime) - both timezone aware in configured timezone
     """
-    
-    # Get current time in Eastern Time
-    eastern_tz = ZoneInfo("America/New_York")
-    now = datetime.now(eastern_tz)
+    # Get current time in configured timezone
+    now = datetime.now(TIMEZONE)
     
     # Set end time to 6am today
     end_datetime = now.replace(hour=6, minute=0, second=0, microsecond=0)

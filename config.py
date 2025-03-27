@@ -137,7 +137,7 @@ SECTIONS = [
 ]
 
 # Timezone settings
-EASTERN_ZONE = ZoneInfo("America/New_York")
+TIMEZONE = ZoneInfo("America/New_York")
 
 # Chart styling
 CHART_STYLE = 'seaborn-v0_8-darkgrid'

@@ -16,7 +16,7 @@ from typing import List, Dict, Any, Optional, Callable
 from zoneinfo import ZoneInfo
 from utils.html_utils import clean_html_content
 from utils.api_utils import num_tokens_from_string, get_content_collection_timeframe
-from config import HEADERS, RUNDOWN_RSS_URL, VEGCONOMIST_RSS_URL, EA_FORUM_RSS_URL
+from config import HEADERS, RUNDOWN_RSS_URL, VEGCONOMIST_RSS_URL, EA_FORUM_RSS_URL, TIMEZONE
 import time
 
 def fetch_and_parse_rss(rss_url: str) -> Optional[feedparser.FeedParserDict]:
@@ -85,7 +85,8 @@ def get_rundown_content() -> List[Dict[str, str]]:
     def extract_datetime(entry):
         if hasattr(entry, 'published_parsed') and entry.published_parsed:
             pub_date = datetime.fromtimestamp(time.mktime(entry.published_parsed))
-            return pub_date.replace(tzinfo=timezone.utc)
+            pub_date = pub_date.replace(tzinfo=timezone.utc)
+            return pub_date.astimezone(TIMEZONE)
         return None
     
     def extract_content(entry):
@@ -105,7 +106,9 @@ def get_rundown_content() -> List[Dict[str, str]]:
         return {
             "url": article_url,
             "title": entry.title,
-            "article": article_text
+            "article": article_text,
+            "datetime": extract_datetime(entry),
+            "source_name": "The Rundown AI"
         }
     
     return get_articles_within_timeframe(
@@ -151,8 +154,9 @@ def get_articles_within_timeframe(
                 if pub_date and start_time <= pub_date <= end_time:
                     article_data = extract_content_fn(entry)
                     if article_data:
-                        # Make sure datetime is included
-                        article_data["datetime"] = pub_date
+                        # Convert datetime to string only at the end before returning
+                        if article_data["datetime"] and isinstance(article_data["datetime"], datetime):
+                            article_data["datetime"] = article_data["datetime"].isoformat()
                         articles_with_dates.append(article_data)
             except Exception as e:
                 entry_id = getattr(entry, 'link', 'unknown') if hasattr(entry, 'link') else 'unknown'
@@ -180,7 +184,8 @@ def get_vegconomist_content() -> List[Dict[str, str]]:
     def extract_datetime(entry):
         if hasattr(entry, 'published_parsed') and entry.published_parsed:
             pub_date = datetime.fromtimestamp(time.mktime(entry.published_parsed))
-            return pub_date.replace(tzinfo=timezone.utc)
+            pub_date = pub_date.replace(tzinfo=timezone.utc)
+            return pub_date.astimezone(TIMEZONE)
         return None
     
     def extract_content(entry):
@@ -195,7 +200,9 @@ def get_vegconomist_content() -> List[Dict[str, str]]:
         return {
             "url": entry.link,
             "title": entry.title,
-            "article": article_text
+            "article": article_text,
+            "datetime": extract_datetime(entry),
+            "source_name": "Vegconomist"
         }
     
     return get_articles_within_timeframe(
@@ -236,7 +243,7 @@ def get_ea_forum_content() -> List[Dict[str, str]]:
                     pub_date_str = pub_date_elem.text.strip()
                     dt = datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S GMT")
                     dt = dt.replace(tzinfo=timezone.utc)
-                    return dt.astimezone(ZoneInfo("America/New_York"))
+                    return dt.astimezone(TIMEZONE)
                 except Exception:
                     logging.warning(f"Error parsing date: {pub_date_str}")
             return None
@@ -259,7 +266,9 @@ def get_ea_forum_content() -> List[Dict[str, str]]:
             return {
                 "url": url,
                 "title": title,
-                "article": article_text
+                "article": article_text,
+                "datetime": extract_datetime(item),
+                "source_name": "EA Forum"
             }
         
         return get_articles_within_timeframe(

@@ -15,7 +15,7 @@ from datetime import datetime
 from config import (
     GOOGLE_USERNAME, GOOGLE_PASSWORD, RECIPIENT_EMAILS,
     SMTP_SERVER, SMTP_PORT, CHART_PATHS, CHART_CONTENT_IDS,
-    EASTERN_ZONE
+    TIMEZONE
 )
 
 def send_email(html_content: str, subject: str = None, send_to_everyone: bool = False, 
@@ -32,8 +32,8 @@ def send_email(html_content: str, subject: str = None, send_to_everyone: bool = 
     Returns:
         bool: True if the email was sent successfully, False otherwise
     """
-    # Get today's date in Eastern Time
-    today = datetime.now(EASTERN_ZONE).strftime("%A, %B %d, %Y")
+    # Get today's date in configured timezone
+    today = datetime.now(TIMEZONE).strftime("%A, %B %d, %Y")
     
     # Use custom subject if provided, otherwise use default
     if subject:
