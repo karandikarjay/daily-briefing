@@ -85,10 +85,10 @@ TICKERS = {
 }
 
 # User personality and preferences for personalized content
-USER_PERSONALITY = "a philanthropist who donates to nonprofits working to create a vegan world and an investor in alternative protein startups. They're deeply committed to animal welfare causes and interested in the business side of plant-based foods and cultivated meat. They want comprehensive updates on the alternative protein industry for investment decisions, meaningful developments in the vegan movement to inform donation strategies, and insights from effective altruism to maximize their impact."
+USER_PERSONALITY = "a philanthropist who donates to nonprofits working to create a vegan world and an investor in alternative protein startups. They are excited about the potential of AI to supercharge their efforts"
 
 # Newsletter tone settings
-NEWSLETTER_TONE = "conversational and engaging - like a well-informed colleague giving you updates. Include occasional light humor when appropriate, but maintain a professional tone. Use clear language that feels natural, with just a touch of lightheartedness to avoid being too serious - but avoid being silly or over-the-top with humor."
+NEWSLETTER_TONE = "conversational and engaging - like a well-informed colleague, who has experienced the ups and downs of market cycles and overhyped startups and doesn't easily get excited, giving you updates. Include occasional light humor when appropriate, but maintain a professional tone"
 
 # Common prompt elements that apply to all sections
 COMMON_PROMPT_ELEMENTS = (
