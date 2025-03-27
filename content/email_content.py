@@ -7,24 +7,23 @@ This module provides functions for retrieving content from email sources.
 import logging
 import imaplib
 import email
+import re
 from email.header import decode_header
 from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
 from typing import List, Dict
-from config import GOOGLE_USERNAME, GOOGLE_PASSWORD, IMAP_SERVER, IMAP_PORT, FAST_EMAIL, TIMEZONE
+from config import GOOGLE_USERNAME, GOOGLE_PASSWORD, IMAP_SERVER, IMAP_PORT, FAST_EMAILS, TIMEZONE
 from utils.api_utils import get_content_collection_timeframe
 from datetime import timezone
 
 def get_fast_email_content() -> List[Dict[str, str]]:
     """
-    Connects to the Gmail IMAP server and retrieves emails that include the specified email
-    (FAST email list) in any "to" or "from" field within the configured time window.
+    Connects to the Gmail IMAP server and retrieves emails that include the specified email addresses
+    (FAST email lists) in any "to" or "from" field within the configured time window.
     
     Returns:
         List[Dict[str, str]]: A list of email contents with subject, body, and datetime
     """
-    search_email = FAST_EMAIL
-    
     try:
         start_time, end_time = get_content_collection_timeframe()
         
@@ -43,10 +42,25 @@ def get_fast_email_content() -> List[Dict[str, str]]:
         # We'll use SINCE start_date BEFORE end_date+1 to cover the full range
         next_day_after_end = (end_time + timedelta(days=1)).strftime("%d-%b-%Y")
         
-        # Search for emails that include the specified email in any "to" or "from" field 
-        # within the exact date range
-        search_criteria = f'(OR (TO "{search_email}" SINCE {start_date_str} BEFORE {next_day_after_end}) ' \
-                         f'(FROM "{search_email}" SINCE {start_date_str} BEFORE {next_day_after_end}))'
+        # IMAP OR can only operate on two conditions at a time
+        # We'll build our criteria differently for proper OR operations
+        date_criteria = f'SINCE {start_date_str} BEFORE {next_day_after_end}'
+        
+        # For a single email address, the search is straightforward
+        if len(FAST_EMAILS) == 1:
+            email_addr = FAST_EMAILS[0]
+            search_criteria = f'({date_criteria}) (OR (TO "{email_addr}") (FROM "{email_addr}"))'
+        else:
+            # For multiple addresses, we need to build a series of nested OR conditions
+            # Start with the first email address
+            email_conditions = f'OR (TO "{FAST_EMAILS[0]}") (FROM "{FAST_EMAILS[0]}")'
+            
+            # Add other email addresses with nested OR conditions
+            for email_addr in FAST_EMAILS[1:]:
+                email_conditions = f'OR ({email_conditions}) (OR (TO "{email_addr}") (FROM "{email_addr}"))'
+            
+            # Combine date criteria with email conditions
+            search_criteria = f'({date_criteria}) ({email_conditions})'
         
         logging.info(f"IMAP search criteria: {search_criteria}")
         status, data = mail.search(None, search_criteria)
@@ -62,7 +76,28 @@ def get_fast_email_content() -> List[Dict[str, str]]:
             for response_part in msg_data:
                 if isinstance(response_part, tuple):
                     msg = email.message_from_bytes(response_part[1])
-                    date_tuple = parsedate_to_datetime(msg["Date"])
+                    
+                    # Get the internal date when the email was received by the server
+                    # This is more reliable than the Date header
+                    status, internal_date_data = mail.fetch(email_id, "(INTERNALDATE)")
+                    
+                    # Parse the INTERNALDATE from the response
+                    internal_date_str = internal_date_data[0].decode()
+                    match = re.search(r'INTERNALDATE "([^"]+)"', internal_date_str)
+                    
+                    if match:
+                        # Convert the INTERNALDATE string to a datetime object
+                        internal_date_str = match.group(1)
+                        try:
+                            # Parse the date in the format like "01-Jan-2023 12:34:56 +0000"
+                            date_tuple = datetime.strptime(internal_date_str, "%d-%b-%Y %H:%M:%S %z")
+                        except ValueError:
+                            # Fallback to Date header if parsing fails
+                            date_tuple = parsedate_to_datetime(msg["Date"])
+                    else:
+                        # Fallback to Date header if INTERNALDATE not available
+                        date_tuple = parsedate_to_datetime(msg["Date"])
+                    
                     if date_tuple.tzinfo is None:
                         date_tuple = date_tuple.replace(tzinfo=timezone.utc)
                     date_tuple = date_tuple.astimezone(TIMEZONE)

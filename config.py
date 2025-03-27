@@ -157,7 +157,11 @@ GREEN_QUEEN_SITEMAP_URL = "https://www.greenqueen.com.hk/sitemap_index.xml"
 VEGCONOMIST_RSS_URL = "https://vegconomist.com/feed/"
 EA_FORUM_RSS_URL = "https://forum.effectivealtruism.org/feed.xml?view=frontpage-rss&karmaThreshold=2"
 RUNDOWN_RSS_URL = "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml"
-FAST_EMAIL = "fast-farm-animal-strategic-team@googlegroups.com"
+
+FAST_EMAILS = [
+    "fast-farm-animal-strategic-team@googlegroups.com",
+    "list@fastcommunity.org"
+]
 
 # Add Stability AI API key to the environment variables section
 STABILITY_API_KEY = os.getenv("STABILITY_API_KEY")
