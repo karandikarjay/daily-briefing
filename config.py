@@ -118,14 +118,6 @@ SECTIONS = [
         "content_type": "emails"
     },
     {
-        "title": "Effective Altruism",
-        "prompt": (
-            f"You are an analyst specializing in effective altruism. {COMMON_PROMPT_ELEMENTS} "
-            "Focus on the latest discussions that would be relevant to philanthropists seeking to maximize their impact."
-        ),
-        "content_type": "articles"
-    },
-    {
         "title": "AI",
         "prompt": (
             f"You are an analyst specializing in artificial intelligence. {COMMON_PROMPT_ELEMENTS} "
@@ -155,7 +147,6 @@ SMTP_PORT = 587
 # Source URLs
 GREEN_QUEEN_SITEMAP_URL = "https://www.greenqueen.com.hk/sitemap_index.xml"
 VEGCONOMIST_RSS_URL = "https://vegconomist.com/feed/"
-EA_FORUM_RSS_URL = "https://forum.effectivealtruism.org/feed.xml?view=frontpage-rss&karmaThreshold=2"
 RUNDOWN_RSS_URL = "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml"
 
 FAST_EMAILS = [

@@ -9,7 +9,7 @@ import logging
 import json
 from typing import List, Dict, Any
 from .rss_content import (
-    get_rundown_content, get_vegconomist_content, get_ea_forum_content
+    get_rundown_content, get_vegconomist_content
 )
 from .email_content import get_fast_email_content
 from .sitemap_content import get_gq_content
@@ -74,8 +74,6 @@ def get_content(title: str, max_tokens: int = 20000) -> List[Dict[str, Any]]:
         all_content.extend(get_vegconomist_content())
     elif title == "Vegan Movement":
         all_content.extend(get_fast_email_content())
-    elif title == "Effective Altruism":
-        all_content.extend(get_ea_forum_content())
     elif title == "AI":
         all_content.extend(get_rundown_content())
     else:

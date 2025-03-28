@@ -8,13 +8,12 @@ The Daily Briefing application collects content from multiple sources, processes
 
 - Alternative Protein
 - Vegan Movement
-- Effective Altruism
 - AI
 
 ## Features
 
 - **Content Aggregation**: Collects content from multiple sources including:
-  - RSS feeds (Vegconomist, EA Forum, The Rundown)
+  - RSS feeds (Vegconomist, The Rundown AI)
   - Website sitemaps (Green Queen)
   - Email lists (FAST)
 

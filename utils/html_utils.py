@@ -82,12 +82,6 @@ def clean_html_content(html_content: str) -> str:
         # Remove excessive whitespace
         text = re.sub(r'\s+', ' ', text)
         
-        # Remove "Published on..." prefix that appears in many EA Forum posts
-        text = re.sub(r'^Published on [A-Za-z]+ \d+, \d+ \d+:\d+ [AP]M [A-Z]+\s*', '', text)
-        
-        # Remove "Discuss" suffix that appears in many EA Forum posts
-        text = re.sub(r'\s*Discuss$', '', text)
-        
         return text.strip()
     except Exception as e:
         logging.warning(f"Error cleaning HTML content: {e}")

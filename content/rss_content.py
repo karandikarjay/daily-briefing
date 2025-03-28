@@ -16,7 +16,7 @@ from typing import List, Dict, Any, Optional, Callable
 from zoneinfo import ZoneInfo
 from utils.html_utils import clean_html_content
 from utils.api_utils import num_tokens_from_string, get_content_collection_timeframe
-from config import HEADERS, RUNDOWN_RSS_URL, VEGCONOMIST_RSS_URL, EA_FORUM_RSS_URL, TIMEZONE
+from config import HEADERS, RUNDOWN_RSS_URL, VEGCONOMIST_RSS_URL, TIMEZONE
 import time
 
 def fetch_and_parse_rss(rss_url: str) -> Optional[feedparser.FeedParserDict]:
@@ -210,74 +210,4 @@ def get_vegconomist_content() -> List[Dict[str, str]]:
         extract_datetime_fn=extract_datetime,
         extract_content_fn=extract_content,
         source_name="Vegconomist"
-    )
-
-def get_ea_forum_content() -> List[Dict[str, str]]:
-    """
-    Fetches the RSS feed from Effective Altruism Forum and returns articles
-    published within the configured time window.
-    
-    Returns:
-        List[Dict[str, str]]: A list of dictionaries with URL, title, and article text
-    """
-    feed_url = EA_FORUM_RSS_URL
-    try:
-        response = requests.get(feed_url)
-        response.raise_for_status()
-        xml_content = response.text
-
-        # Parse the XML content
-        root = ET.fromstring(xml_content)
-        channel = root.find("channel")
-        if channel is None:
-            logging.warning("No channel found in EA Forum feed")
-            return []
-
-        # Extract all <item> elements
-        items = channel.findall("item")
-        
-        def extract_datetime(item):
-            pub_date_elem = item.find("pubDate")
-            if pub_date_elem is not None and pub_date_elem.text:
-                try:
-                    pub_date_str = pub_date_elem.text.strip()
-                    dt = datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S GMT")
-                    dt = dt.replace(tzinfo=timezone.utc)
-                    return dt.astimezone(TIMEZONE)
-                except Exception:
-                    logging.warning(f"Error parsing date: {pub_date_str}")
-            return None
-        
-        def extract_content(item):
-            title_elem = item.find("title")
-            link_elem = item.find("link")
-            desc_elem = item.find("description")
-            
-            if not (title_elem is not None and link_elem is not None):
-                return None
-
-            title = title_elem.text.strip() if title_elem.text else ""
-            url = link_elem.text.strip() if link_elem.text else ""
-            article_html = desc_elem.text.strip() if (desc_elem is not None and desc_elem.text) else ""
-            
-            # Clean HTML content to reduce token usage
-            article_text = clean_html_content(article_html)
-            
-            return {
-                "url": url,
-                "title": title,
-                "article": article_text,
-                "datetime": extract_datetime(item),
-                "source_name": "EA Forum"
-            }
-        
-        return get_articles_within_timeframe(
-            feed_data=items,
-            extract_datetime_fn=extract_datetime,
-            extract_content_fn=extract_content,
-            source_name="EA Forum"
-        )
-
-    except Exception as e:
-        logging.exception("Error retrieving content from EA Forum RSS feed")
-        return [] 
+    ) 
