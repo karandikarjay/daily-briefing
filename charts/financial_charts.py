@@ -5,10 +5,14 @@ This module provides functions for creating financial charts for the daily brief
 """
 
 import logging
+import time
 import matplotlib.pyplot as plt
 import yfinance as yf
 import pandas as pd
 from config import TICKERS, CHART_STYLE, CHART_COLOR, GRID_COLOR, BACKGROUND_COLOR, CHART_DPI
+
+# Delay between Yahoo Finance API calls to avoid rate limiting
+YF_REQUEST_DELAY = 2  # seconds
 
 def create_charts() -> None:
     """
@@ -17,7 +21,12 @@ def create_charts() -> None:
     """
     plt.style.use(CHART_STYLE)
 
-    for ticker, info in TICKERS.items():
+    for i, (ticker, info) in enumerate(TICKERS.items()):
+        # Add delay between requests to avoid Yahoo Finance rate limiting
+        if i > 0:
+            logging.info(f"Waiting {YF_REQUEST_DELAY}s before next request to avoid rate limiting...")
+            time.sleep(YF_REQUEST_DELAY)
+
         logging.info(f"Downloading data for {info['display_name']}...")
         data = yf.download(ticker, period="1y")
         if data.empty:

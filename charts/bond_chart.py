@@ -30,19 +30,21 @@ def get_beyond_meat_bond_chart() -> None:
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--enable-unsafe-swiftshader")
     chrome_options.add_argument("--blink-settings=imagesEnabled=true")
+    chrome_options.page_load_timeout = 90  # Increase page load timeout
 
     driver = None
     
     try:
         logging.info("Initializing Chrome driver for Beyond Meat bond chart...")
         driver = webdriver.Chrome(options=chrome_options)
-        
+        driver.set_page_load_timeout(90)  # Set page load timeout to 90 seconds
+
         # Navigate to the page
         logging.info(f"Navigating to {BEYOND_MEAT_BOND_URL}...")
         driver.get(BEYOND_MEAT_BOND_URL)
         
-        # Wait for the main chart container
-        wait = WebDriverWait(driver, 20)
+        # Wait for the main chart container (increased timeout to avoid timeouts on slow connections)
+        wait = WebDriverWait(driver, 60)
         logging.info("Waiting for chart container to load...")
         chart_container = wait.until(EC.presence_of_element_located((By.ID, "DetailChart")))
         
