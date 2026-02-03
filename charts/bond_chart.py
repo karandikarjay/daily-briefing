@@ -98,7 +98,7 @@ def get_beyond_meat_bond_chart() -> None:
             width, height = img.size
             
             # Create a new image with extra space at the top for the title
-            title_height = 80  # Height for the title section
+            title_height = 100  # Height for the title section
             new_img = Image.new('RGB', (width, height + title_height), color=(255, 255, 255))
             new_img.paste(img, (0, title_height))
             
@@ -117,7 +117,7 @@ def get_beyond_meat_bond_chart() -> None:
                 font = None
                 for path in font_paths:
                     if os.path.exists(path):
-                        font = ImageFont.truetype(path, 36)  # Larger font to match stock chart titles
+                        font = ImageFont.truetype(path, 54)  # Larger font to match stock chart titles
                         break
                         
                 if font is None:
