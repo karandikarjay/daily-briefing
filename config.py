@@ -88,7 +88,7 @@ TICKERS = {
 USER_PERSONALITY = "a philanthropist who donates to nonprofits working to create a vegan world and an investor in alternative protein startups. They are excited about the potential of AI to supercharge their efforts"
 
 # Newsletter tone settings
-NEWSLETTER_TONE = "conversational and engaging - like a well-informed colleague, who has experienced the ups and downs of market cycles and overhyped startups and doesn't easily get excited, giving you updates. Include occasional light humor when appropriate, but maintain a professional tone"
+NEWSLETTER_TONE = "conversational and engaging - like a well-informed colleague, who has experienced the ups and downs of market cycles and overhyped startups and doesn't easily get excited, giving you updates. Avoid the the gratuitous use of similes and metaphors."
 
 # Common prompt elements that apply to all sections
 COMMON_PROMPT_ELEMENTS = (
@@ -154,10 +154,8 @@ FAST_EMAILS = [
     "list@fastcommunity.org"
 ]
 
-# Add Stability AI API key to the environment variables section
-STABILITY_API_KEY = os.getenv("STABILITY_API_KEY")
-
-# Add Stability AI configuration
-STABILITY_API_URL = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
-STABILITY_IMAGE_ASPECT_RATIO = "16:9"
-STABILITY_IMAGE_OUTPUT_FORMAT = "png"
+# OpenAI Image Generation configuration (using gpt-image-1.5)
+IMAGE_MODEL = "gpt-image-1.5"
+IMAGE_SIZE = "1536x1024"  # Landscape format for newsletter
+IMAGE_QUALITY = "medium"  # Balance between quality and cost
+IMAGE_OUTPUT_FORMAT = "png"

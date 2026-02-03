@@ -14,7 +14,11 @@ from openai import OpenAI
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from config import AI_MODEL, MAX_RETRIES, INITIAL_RETRY_DELAY, MAX_RETRY_DELAY, MAX_TOKENS_PER_REQUEST, TIMEZONE
+from config import (
+    AI_MODEL, MAX_RETRIES, INITIAL_RETRY_DELAY, MAX_RETRY_DELAY,
+    MAX_TOKENS_PER_REQUEST, TIMEZONE, IMAGE_MODEL, IMAGE_SIZE,
+    IMAGE_QUALITY, IMAGE_OUTPUT_FORMAT
+)
 
 def num_tokens_from_string(string: str, model: str = "gpt-4") -> int:
     """
@@ -95,70 +99,49 @@ def call_openai_api_with_backoff(
     # This should not be reached due to the raise in the loop
     raise Exception(f"Max retries exceeded without successful {resource_type} API call")
 
-def call_stability_api_with_backoff(
-    api_call: callable,
-    resource_type: str = "stability_image",
-    max_retries: int = MAX_RETRIES,
-    initial_retry_delay: float = INITIAL_RETRY_DELAY,
-    max_retry_delay: float = MAX_RETRY_DELAY
-) -> Any:
+def call_openai_image_generation(
+    client: OpenAI,
+    prompt: str,
+    model: str = IMAGE_MODEL,
+    size: str = IMAGE_SIZE,
+    quality: str = IMAGE_QUALITY,
+    output_format: str = IMAGE_OUTPUT_FORMAT
+) -> bytes:
     """
-    Makes an API call to Stability AI with exponential backoff for retries.
-    Handles rate limits and errors.
-    
+    Generates an image using OpenAI's gpt-image-1.5 model with exponential backoff for retries.
+
     Args:
-        api_call: A callable that makes the actual API call
-        resource_type: Description of the resource being requested
-        max_retries: Maximum number of retries
-        initial_retry_delay: Initial delay between retries (seconds)
-        max_retry_delay: Maximum delay between retries (seconds)
-        
+        client: The OpenAI client instance
+        prompt: Text description of the image to generate
+        model: The image model to use (default: gpt-image-1.5)
+        size: Image size (default: 1536x1024 for landscape)
+        quality: Image quality - low, medium, or high (default: medium)
+        output_format: Output format - png, jpeg, or webp (default: png)
+
     Returns:
-        The API response
+        bytes: The generated image data
     """
-    retry_count = 0
-    while retry_count < max_retries:
-        try:
-            # Add jitter to avoid synchronized retries
-            jitter = random.uniform(0.8, 1.2)
-            
-            # Make the API call
-            response = api_call()
-            
-            # Check the status code
-            if response.status_code in [200, 201, 202]:
-                return response
-            else:
-                # Handle non-success status codes
-                error_message = str(response.json()) if response.headers.get('content-type') == 'application/json' else f"Status code: {response.status_code}"
-                raise Exception(f"Stability API error: {error_message}")
-            
-        except Exception as e:
-            retry_count += 1
-            
-            # Check if it's a rate limit error
-            is_rate_limit = (
-                hasattr(e, 'status_code') and e.status_code == 429 or
-                "rate limit" in str(e).lower() or
-                "too many requests" in str(e).lower()
-            )
-            
-            if is_rate_limit:
-                logging.warning(f"{resource_type} rate limit exceeded. Attempt {retry_count}/{max_retries}")
-            else:
-                logging.warning(f"API error with {resource_type}: {str(e)}. Attempt {retry_count}/{max_retries}")
-            
-            if retry_count >= max_retries:
-                logging.error(f"Max retries reached. Giving up on {resource_type} request.")
-                raise
-            
-            # Calculate backoff with jitter
-            delay = min(initial_retry_delay * (2 ** (retry_count - 1)) * jitter, max_retry_delay)
-            logging.info(f"Retrying {resource_type} request in {delay:.2f} seconds...")
-            time.sleep(delay)
-    
-    # This should not be reached due to the raise in the loop
-    raise Exception(f"Max retries exceeded without successful {resource_type} API call")
+    import base64
+
+    def api_call():
+        return client.images.generate(
+            model=model,
+            prompt=prompt,
+            size=size,
+            quality=quality,
+            output_format=output_format,
+            n=1
+        )
+
+    response = call_openai_api_with_backoff(
+        client,
+        api_call=api_call,
+        resource_type="image_generation"
+    )
+
+    # Decode the base64 image data
+    image_base64 = response.data[0].b64_json
+    return base64.b64decode(image_base64)
 
 def call_openai_api_with_messages(
     client: OpenAI,

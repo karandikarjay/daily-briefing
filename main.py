@@ -12,19 +12,17 @@ import json
 import logging
 import os
 from openai import OpenAI
-from typing import Dict, List, Optional
-import requests
+from typing import Dict, List
 
 # Import configuration
 from config import (
     OPENAI_API_KEY, AI_MODEL, SECTIONS, TEMPLATE_PATH,
-    USER_PERSONALITY, NEWSLETTER_TONE,
-    STABILITY_API_KEY, STABILITY_API_URL, STABILITY_IMAGE_ASPECT_RATIO, STABILITY_IMAGE_OUTPUT_FORMAT
+    USER_PERSONALITY, NEWSLETTER_TONE
 )
 
 # Import utilities
 from utils.logging_setup import setup_logging, log_section_prompt, log_section_response, log_newsletter
-from utils.api_utils import num_tokens_from_string, call_openai_parse_with_backoff, call_openai_api_with_backoff, call_stability_api_with_backoff
+from utils.api_utils import num_tokens_from_string, call_openai_parse_with_backoff, call_openai_api_with_backoff, call_openai_image_generation
 from utils.html_utils import generate_email_html
 from utils.email_utils import send_email
 
@@ -108,8 +106,8 @@ def main():
         if all_news_items:
             newsletter_elements, email_subject = generate_cohesive_newsletter(client, all_news_items, prompt_logger)
             
-            # Generate images for any image descriptions using Stability AI
-            image_paths = generate_stability_images(newsletter_elements)
+            # Generate images for any image descriptions using OpenAI's gpt-image-1.5
+            image_paths = generate_images(client, newsletter_elements)
             
             # Read the HTML newsletter template
             with open(TEMPLATE_PATH, "r", encoding="utf-8") as file:
@@ -140,81 +138,63 @@ def main():
     send_email(newsletter, email_subject, send_to_everyone, image_paths)
     logging.info("Daily briefing process completed successfully.")
 
-def generate_stability_images(newsletter_elements: List[ContentElement]) -> Dict[str, str]:
+def generate_images(client: OpenAI, newsletter_elements: List[ContentElement]) -> Dict[str, str]:
     """
-    Generates images using Stability AI for any image_description elements.
-    
+    Generates images using OpenAI's gpt-image-1.5 for any image_description elements.
+
     Args:
+        client: The OpenAI client instance
         newsletter_elements: List of newsletter content elements
-        
+
     Returns:
         Dict[str, str]: Dictionary mapping image_id to file path
     """
     image_paths = {}
     image_counter = 1
-    
+
     for i, element in enumerate(newsletter_elements):
         if element.type == "image_description":
             image_id = f"generated_image_{image_counter}"
             image_counter += 1
-            
+
             try:
-                logging.info(f"Generating Stability AI image for: {element.content[:50]}...")
-                
-                # Get the prompt (content) and save the caption
+                logging.info(f"Generating image for: {element.content[:50]}...")
+
+                # Get the prompt (content)
                 prompt = element.content
-                
-                # Log the Stability AI prompt to the prompt logger
+
+                # Log the image prompt to the prompt logger
                 logging.getLogger('prompts').info(
-                    f"\n{'='*80}\nSTABILITY AI PROMPT {image_id}\n{'='*80}\n"
+                    f"\n{'='*80}\nIMAGE GENERATION PROMPT {image_id}\n{'='*80}\n"
                     f"{prompt}\n"
                     f"{'='*80}\n"
                 )
-                
+
                 # Create a temporary directory if it doesn't exist
                 temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp_images")
                 os.makedirs(temp_dir, exist_ok=True)
-                
+
                 # Define the output image path
                 image_path = os.path.join(temp_dir, f"{image_id}.png")
-                
-                # Prepare the API call function for Stability AI
-                def make_stability_api_call():
-                    return requests.post(
-                        STABILITY_API_URL,
-                        headers={
-                            "authorization": f"Bearer {STABILITY_API_KEY}",
-                            "accept": "image/*"
-                        },
-                        files={"none": ''},
-                        data={
-                            "prompt": prompt,
-                            "output_format": STABILITY_IMAGE_OUTPUT_FORMAT,
-                            "aspect_ratio": STABILITY_IMAGE_ASPECT_RATIO,
-                        },
-                    )
-                
-                # Make the API request with backoff
-                response = call_stability_api_with_backoff(
-                    api_call=make_stability_api_call,
-                    resource_type="stability_image"
-                )
-                
+
+                # Generate the image using OpenAI's gpt-image-1.5
+                image_data = call_openai_image_generation(client, prompt)
+
                 # Save the image
                 with open(image_path, 'wb') as file:
-                    file.write(response.content)
-                    
+                    file.write(image_data)
+
                 # Add the image path to the dictionary
                 image_paths[image_id] = image_path
-                
-                logging.info(f"Stability AI image saved to {image_path}")
-                
+
+                logging.info(f"Image saved to {image_path}")
+
                 # Update the element content to include the image ID for reference
                 element.content = image_id
-                    
+
             except Exception as e:
-                logging.exception(f"Error generating Stability AI image: {e}")
-    
+                logging.exception(f"Error generating image: {e}")
+
     return image_paths
 
 def generate_cohesive_newsletter(client: OpenAI, news_items: List[Dict], prompt_logger) -> tuple:
