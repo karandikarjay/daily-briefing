@@ -110,7 +110,8 @@ def get_beyond_meat_bond_chart() -> None:
                 # Try to find a suitable font - adjust path if needed
                 font_paths = [
                     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux
-                    "/Library/Fonts/Arial Bold.ttf",  # macOS
+                    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",  # macOS
+                    "/Library/Fonts/Arial Bold.ttf",  # macOS (alternate location)
                     "C:/Windows/Fonts/arialbd.ttf"  # Windows
                 ]
                 
