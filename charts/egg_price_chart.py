@@ -48,7 +48,7 @@ def extract_egg_price_chart() -> None:
         img = Image.frombytes("RGB", [pix.width, pix.height], img_data)
         
         # Crop box (left, upper, right, lower) for the price graph
-        crop_box = (1195, 245, 2250, 600)  # Adjusted to capture full chart without extra text
+        crop_box = (1195, 245, 2250, 570)  # Adjusted to capture full chart without extra text
         
         # Crop the image
         cropped_image = img.crop(crop_box)
