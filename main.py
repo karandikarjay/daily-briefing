@@ -11,6 +11,7 @@ import sys
 import json
 import logging
 import os
+from datetime import datetime
 from openai import OpenAI
 from anthropic import Anthropic
 from typing import Dict, List
@@ -249,7 +250,8 @@ def generate_cohesive_newsletter(client: Anthropic, news_items: List[Dict], prom
         "\n4. CAPTION: One line for the image"
 
         "\n\n=== INTRO ==="
-        "\nStart with a bold greeting like 'Happy Tuesday!' or similar."
+        f"\nToday is {datetime.now().strftime('%A, %B %d, %Y')}."
+        "\nStart with a bold greeting using the current day like '<strong>Happy Tuesday!</strong>' or similar."
         "\nThen one sentence teasing what's in this edition."
         "\nExample: '<strong>Happy Tuesday!</strong> Big retail moves in alt-protein today, plus an AI tool worth knowing.'"
 
