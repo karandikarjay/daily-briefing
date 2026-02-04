@@ -140,14 +140,29 @@ def call_openai_image_generation(
     import base64
 
     def api_call():
-        return client.images.generate(
-            model=model,
-            prompt=prompt,
-            size=size,
-            quality=quality,
-            output_format=output_format,
-            n=1
-        )
+        # Try with output_format first (newer OpenAI SDK for gpt-image-1.5)
+        # Fall back to response_format if output_format is not supported
+        try:
+            return client.images.generate(
+                model=model,
+                prompt=prompt,
+                size=size,
+                quality=quality,
+                output_format=output_format,
+                n=1
+            )
+        except TypeError as e:
+            if "output_format" in str(e):
+                # Older SDK version - use response_format instead
+                return client.images.generate(
+                    model=model,
+                    prompt=prompt,
+                    size=size,
+                    quality=quality,
+                    response_format="b64_json",
+                    n=1
+                )
+            raise
 
     response = call_api_with_backoff(
         api_call=api_call,
