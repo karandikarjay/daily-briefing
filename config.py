@@ -12,11 +12,12 @@ from zoneinfo import ZoneInfo
 import sys
 from typing import List
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file (override=True ensures .env takes precedence)
+load_dotenv(override=True)
 
 # API Keys and credentials
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 GOOGLE_USERNAME = os.getenv("GOOGLE_USERNAME")
 GOOGLE_PASSWORD = os.getenv("GOOGLE_PASSWORD")
 
@@ -24,8 +25,8 @@ GOOGLE_PASSWORD = os.getenv("GOOGLE_PASSWORD")
 recipient_emails_str = os.getenv("RECIPIENT_EMAILS", "")
 RECIPIENT_EMAILS = [email.strip() for email in recipient_emails_str.split(",")] if recipient_emails_str else []
 
-# Define AI model to use
-AI_MODEL = "gpt-4o"
+# Define AI model to use (Claude Opus 4.5)
+AI_MODEL = "claude-opus-4-5"
 
 # Get the directory where the script is located
 SCRIPT_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -41,12 +42,13 @@ HEADERS = {
                    'Chrome/120.0.0.0 Safari/537.36')
 }
 
-# OpenAI API rate limiting parameters
+# API rate limiting parameters
 MAX_RETRIES = 5
 INITIAL_RETRY_DELAY = 1  # seconds
 MAX_RETRY_DELAY = 60  # seconds
-MAX_TOKENS_PER_REQUEST = 25000  # Keeping well below the 30000 TPM limit
+MAX_TOKENS_PER_REQUEST = 100000  # Claude supports much larger context
 TOKEN_BUFFER = 1000  # Buffer to account for response tokens
+MAX_OUTPUT_TOKENS = 8192  # Maximum output tokens for Claude
 
 # Email template path
 TEMPLATE_PATH = os.path.join(SCRIPT_DIR, "template.html")

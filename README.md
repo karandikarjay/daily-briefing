@@ -1,10 +1,10 @@
-# Daily Briefing
+# Future Appetite
 
-A Python application that automatically generates and delivers a personalized daily briefing email with curated content from various sources including news sites, RSS feeds, emails, and financial data.
+A Python application that automatically generates and delivers a personalized daily briefing email newsletter with curated content from various sources including news sites, RSS feeds, emails, and financial data.
 
 ## Overview
 
-The Daily Briefing application collects content from multiple sources, processes it using AI to extract the most relevant information, generates financial charts, and sends a formatted email newsletter. The application is designed to provide a comprehensive overview of various topics including:
+Future Appetite collects content from multiple sources, processes it using AI to extract the most relevant information, generates photorealistic images and financial charts, and sends a formatted Axios-style email newsletter. The application is designed to provide a comprehensive overview of various topics including:
 
 - Alternative Protein
 - Vegan Movement
@@ -17,12 +17,13 @@ The Daily Briefing application collects content from multiple sources, processes
   - Website sitemaps (Green Queen)
   - Email lists (FAST)
 
-- **AI-Powered Content Processing**: Uses OpenAI's GPT models to:
-  - Extract the most important information from each source
-  - Generate concise bullet points for each section
-  - Create summaries that highlight key developments
+- **AI-Powered Content Processing**: Uses Claude Opus 4.5 (Anthropic) to:
+  - Extract the most important news items from each source
+  - Select the top 3 stories across all topics
+  - Generate an Axios-style newsletter with Smart Brevity principles
+  - Create scannable content with "What", "Why it matters", and "Go deeper" sections
 
-- **AI Image Generation**: Uses Stability AI to generate relevant images for newsletter content
+- **AI Image Generation**: Uses OpenAI's gpt-image-1.5 to generate photorealistic images for each story
 
 - **Financial Charts**: Generates visual charts for financial data including:
   - Beyond Meat (BYND) stock price
@@ -32,8 +33,8 @@ The Daily Briefing application collects content from multiple sources, processes
   - USDA egg prices
 
 - **Email Delivery**: Sends a formatted HTML email with:
-  - Organized sections for different topics
-  - AI-generated images
+  - Clean, minimal Axios-style design
+  - Top 3 stories with photorealistic AI-generated images
   - Embedded financial charts
   - Links to original sources
   - Option to send to a single recipient or a distribution list
@@ -70,7 +71,8 @@ daily-briefing/
 ## Requirements
 
 - Python 3.9+
-- OpenAI API key
+- Anthropic API key (for Claude Opus 4.5 text generation)
+- OpenAI API key (for gpt-image-1.5 image generation)
 - Gmail account (for sending emails)
 - Required Python packages (see requirements.txt)
 
@@ -89,6 +91,7 @@ daily-briefing/
 
 3. Create a `.env` file with the following variables:
    ```
+   ANTHROPIC_API_KEY=your_anthropic_api_key
    OPENAI_API_KEY=your_openai_api_key
    GOOGLE_USERNAME=your_gmail_address
    GOOGLE_PASSWORD=your_gmail_app_password
@@ -130,13 +133,17 @@ The application is configured through the `config.py` file, which includes:
 
 1. **Content Collection**: The application retrieves content from various sources defined in the configuration.
 
-2. **Content Processing**: For each section, the collected content is processed using OpenAI's API to extract the most important information and generate bullet points.
+2. **Content Processing**: For each section, the collected content is processed using Claude Opus 4.5 to extract the most important news items.
 
-3. **Chart Generation**: Financial charts are created using matplotlib and yfinance data.
+3. **Newsletter Generation**: Claude selects the top 3 stories and generates an Axios-style newsletter with Smart Brevity principles.
 
-4. **Email Generation**: An HTML email is generated using the template and populated with the processed content and charts.
+4. **Image Generation**: OpenAI's gpt-image-1.5 generates photorealistic images for each story.
 
-5. **Email Delivery**: The email is sent to the specified recipients.
+5. **Chart Generation**: Financial charts are created using matplotlib and yfinance data.
+
+6. **Email Generation**: An HTML email is generated using the template with the Axios-style content, images, and charts.
+
+7. **Email Delivery**: The email is sent to the specified recipients.
 
 ## Content Collection Logic
 
@@ -174,6 +181,7 @@ To add a new section to the briefing:
 
 ## Acknowledgements
 
-- OpenAI for providing the GPT models
+- Anthropic for providing Claude Opus 4.5
+- OpenAI for providing gpt-image-1.5 image generation
 - yfinance for financial data
 - All the content sources that make this briefing possible

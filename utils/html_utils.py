@@ -70,12 +70,8 @@ def _generate_axios_html(template: str, axios_response: AxiosNewsletterResponse,
             # Clean up label - remove trailing colon if present for cleaner look
             label = bullet.label.rstrip(':')
 
-            if label.lower() == "go deeper":
-                # "Go deeper" gets special treatment as a link section
-                story_html += f'    <p class="go-deeper"><a href="#">{label}</a> ... {bullet.text}</p>\n'
-            else:
-                # Regular bullets become paragraphs with bold lead-ins
-                story_html += f'    <p><strong>{label}:</strong> {bullet.text}</p>\n'
+            # All bullets become paragraphs with bold lead-ins
+            story_html += f'    <p><strong>{label}:</strong> {bullet.text}</p>\n'
 
         story_html += '  </div>\n'
         story_html += '</div>\n'

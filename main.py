@@ -12,11 +12,12 @@ import json
 import logging
 import os
 from openai import OpenAI
+from anthropic import Anthropic
 from typing import Dict, List
 
 # Import configuration
 from config import (
-    OPENAI_API_KEY, AI_MODEL, SECTIONS, TEMPLATE_PATH,
+    OPENAI_API_KEY, ANTHROPIC_API_KEY, AI_MODEL, SECTIONS, TEMPLATE_PATH,
     USER_PERSONALITY, NEWSLETTER_TONE
 )
 
@@ -49,10 +50,13 @@ def main():
 
     # Set up logging
     logger, prompt_logger = setup_logging()
-    
-    # Initialize OpenAI client
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    
+
+    # Initialize Anthropic client for text generation (Claude)
+    client = Anthropic(api_key=ANTHROPIC_API_KEY)
+
+    # Initialize OpenAI client for image generation
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
+
     # Dictionary to store news items for each section
     all_news_items = []
 
@@ -109,7 +113,7 @@ def main():
             axios_response, email_subject = generate_cohesive_newsletter(client, all_news_items, prompt_logger)
 
             # Generate images for each story using OpenAI's gpt-image-1.5
-            image_paths = generate_images(client, axios_response)
+            image_paths = generate_images(openai_client, axios_response)
 
             # Read the HTML newsletter template
             with open(TEMPLATE_PATH, "r", encoding="utf-8") as file:
@@ -195,12 +199,12 @@ def generate_images(client: OpenAI, axios_response: AxiosNewsletterResponse) -> 
 
     return image_paths
 
-def generate_cohesive_newsletter(client: OpenAI, news_items: List[Dict], prompt_logger) -> tuple:
+def generate_cohesive_newsletter(client: Anthropic, news_items: List[Dict], prompt_logger) -> tuple:
     """
     Generates an Axios-style newsletter with top 3 stories from the collected news items.
 
     Args:
-        client: The OpenAI client
+        client: The Anthropic client (Claude)
         news_items: List of news items from all sections
         prompt_logger: Logger for prompts and responses
 
