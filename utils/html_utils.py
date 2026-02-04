@@ -7,24 +7,103 @@ This module provides functions for generating HTML content for the email newslet
 import re
 import logging
 from bs4 import BeautifulSoup
-from typing import List, Dict, Optional
-from models.data_models import ContentElement
+from typing import List, Dict, Optional, Union
+from models.data_models import ContentElement, AxiosNewsletterResponse
 
-def generate_email_html(template: str, newsletter_elements: List[ContentElement], image_paths: Optional[Dict[str, str]] = None) -> str:
+
+def generate_email_html(template: str, newsletter_content: Union[List[ContentElement], AxiosNewsletterResponse], image_paths: Optional[Dict[str, str]] = None) -> str:
     """
-    Generates HTML for the email newsletter using the template and newsletter elements.
-    
+    Generates HTML for the email newsletter using the template and newsletter content.
+
     Args:
         template (str): HTML template string
-        newsletter_elements (List[ContentElement]): List of newsletter content elements
+        newsletter_content: Either List[ContentElement] (legacy) or AxiosNewsletterResponse (new format)
         image_paths (Dict[str, str], optional): Dictionary of image IDs to file paths
-        
+
     Returns:
         str: Generated HTML content for the email
     """
-    # Generate HTML from the content elements
+    # Check if we're using the new Axios format
+    if isinstance(newsletter_content, AxiosNewsletterResponse):
+        return _generate_axios_html(template, newsletter_content, image_paths)
+    else:
+        # Legacy format with ContentElement list
+        return _generate_legacy_html(template, newsletter_content, image_paths)
+
+
+def _generate_axios_html(template: str, axios_response: AxiosNewsletterResponse, image_paths: Optional[Dict[str, str]] = None) -> str:
+    """
+    Generates HTML for Axios-style newsletter with clean, minimal formatting.
+
+    Args:
+        template: HTML template string
+        axios_response: The Axios newsletter response with stories
+        image_paths: Dictionary of image IDs to file paths
+
+    Returns:
+        str: Generated HTML content
+    """
     newsletter_html = ""
-    
+
+    # Add intro paragraph with bold lead-in
+    if axios_response.intro:
+        newsletter_html += f'<p class="intro-text">{axios_response.intro}</p>\n'
+
+    # Generate HTML for each story
+    for i, story in enumerate(axios_response.stories):
+        story_html = '<div class="story-section">\n'
+
+        # Story header with consistent numbering: "1. Headline", "2. Headline", "3. Headline"
+        story_html += f'  <h2 class="story-header"><span class="story-number">{i + 1}.</span> {story.headline}</h2>\n'
+
+        # Add image right after headline (like Axios)
+        image_id = f"story_image_{i + 1}"
+        if image_paths and image_id in image_paths:
+            story_html += f'  <img class="story-image" src="cid:{image_id}" alt="{story.headline}">\n'
+            if story.image_caption:
+                story_html += f'  <p class="image-caption">{story.image_caption}</p>\n'
+
+        story_html += '  <div class="story-content">\n'
+
+        # Convert bullets to flowing paragraphs with bold lead-ins
+        for bullet in story.bullets:
+            # Clean up label - remove trailing colon if present for cleaner look
+            label = bullet.label.rstrip(':')
+
+            if label.lower() == "go deeper":
+                # "Go deeper" gets special treatment as a link section
+                story_html += f'    <p class="go-deeper"><a href="#">{label}</a> ... {bullet.text}</p>\n'
+            else:
+                # Regular bullets become paragraphs with bold lead-ins
+                story_html += f'    <p><strong>{label}:</strong> {bullet.text}</p>\n'
+
+        story_html += '  </div>\n'
+        story_html += '</div>\n'
+        newsletter_html += story_html
+
+    # Add closing if present
+    if axios_response.closing:
+        newsletter_html += f'<p style="margin-top: 24px;">{axios_response.closing}</p>\n'
+
+    # Replace the newsletter content placeholder
+    html = template.replace("{newsletter_content}", newsletter_html)
+    return html
+
+
+def _generate_legacy_html(template: str, newsletter_elements: List[ContentElement], image_paths: Optional[Dict[str, str]] = None) -> str:
+    """
+    Generates HTML using the legacy ContentElement format.
+
+    Args:
+        template: HTML template string
+        newsletter_elements: List of ContentElement objects
+        image_paths: Dictionary of image IDs to file paths
+
+    Returns:
+        str: Generated HTML content
+    """
+    newsletter_html = ""
+
     for element in newsletter_elements:
         if element.type == "heading":
             newsletter_html += f"<h2>{element.content}</h2>\n"
@@ -33,14 +112,14 @@ def generate_email_html(template: str, newsletter_elements: List[ContentElement]
         elif element.type == "image_description":
             # For image descriptions, we'll add a div with the image
             image_id = element.content
-            
+
             # Check if there's a caption
             caption_html = ""
             if element.caption:
                 caption_html = f'<p class="image-caption"><em>{element.caption}</em></p>'
-            
+
             newsletter_html += f'<div class="generated-image"><img src="cid:{image_id}" alt="Generated image related to newsletter content" style="width:100%;max-width:800px;height:auto;margin:15px auto;display:block;border-radius:8px;">{caption_html}</div>\n'
-    
+
     # Replace the newsletter content placeholder with the actual newsletter text
     html = template.replace("{newsletter_content}", newsletter_html)
     return html

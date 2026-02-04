@@ -98,7 +98,7 @@ def get_beyond_meat_bond_chart() -> None:
             width, height = img.size
             
             # Create a new image with extra space at the top for the title
-            title_height = 100  # Height for the title section
+            title_height = 38  # Height for the title section (18px font + padding)
             new_img = Image.new('RGB', (width, height + title_height), color=(255, 255, 255))
             new_img.paste(img, (0, title_height))
             
@@ -118,7 +118,7 @@ def get_beyond_meat_bond_chart() -> None:
                 font = None
                 for path in font_paths:
                     if os.path.exists(path):
-                        font = ImageFont.truetype(path, 54)  # Larger font to match stock chart titles
+                        font = ImageFont.truetype(path, 18)  # Font size to match stock chart titles
                         break
                         
                 if font is None:
@@ -131,7 +131,7 @@ def get_beyond_meat_bond_chart() -> None:
             # Draw the title
             title_text = "Beyond Meat Bond Price"
             text_width = draw.textlength(title_text, font=font) if hasattr(draw, 'textlength') else font.getlength(title_text)
-            position = ((width - text_width) // 2, 20)  # Center the title
+            position = ((width - text_width) // 2, 10)  # Center the title vertically
             
             # Draw the text - use color matching the financial chart style
             draw.text(position, title_text, fill=(30, 61, 89), font=font)  # Match CHART_COLOR

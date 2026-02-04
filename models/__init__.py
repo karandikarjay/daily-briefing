@@ -9,7 +9,10 @@ from .data_models import (
     CohesiveNewsletterResponse,
     ArticleContent,
     EmailContent,
-    ContentSource
+    ContentSource,
+    StoryBullet,
+    NewsStory,
+    AxiosNewsletterResponse
 )
 
 __all__ = [
@@ -19,5 +22,8 @@ __all__ = [
     'CohesiveNewsletterResponse',
     'ArticleContent',
     'EmailContent',
-    'ContentSource'
+    'ContentSource',
+    'StoryBullet',
+    'NewsStory',
+    'AxiosNewsletterResponse'
 ] 

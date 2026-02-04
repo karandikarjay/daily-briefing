@@ -27,8 +27,31 @@ class ContentElement(BaseModel):
     content: str  # Raw text without HTML tags
     caption: Optional[str] = None  # Caption for image_description elements
 
+
+class StoryBullet(BaseModel):
+    """Model for a bullet point within a story."""
+    label: str  # Bold label like "What:", "Why it matters:", "Go deeper:"
+    text: str  # The content after the label (can include HTML links)
+
+
+class NewsStory(BaseModel):
+    """Model for a single news story in Axios style."""
+    headline: str  # Short, punchy headline for the story
+    bullets: List[StoryBullet]  # List of bullet points (what, why, source)
+    image_description: Optional[str] = None  # Description for AI image generation
+    image_caption: Optional[str] = None  # Caption for the generated image
+
+
+class AxiosNewsletterResponse(BaseModel):
+    """Response model for Axios-style newsletter with top 3 stories."""
+    subject: str  # Email subject line highlighting the top story
+    intro: str  # Brief intro paragraph
+    stories: List[NewsStory]  # Exactly 3 top stories
+    closing: Optional[str] = None  # Optional closing remarks
+
+
 class CohesiveNewsletterResponse(BaseModel):
-    """Response model for the final cohesive newsletter."""
+    """Response model for the final cohesive newsletter (legacy)."""
     subject: str  # Custom email subject
     content_elements: List[ContentElement]  # List of paragraphs, headings, and image descriptions
 

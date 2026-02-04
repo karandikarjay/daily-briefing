@@ -36,8 +36,10 @@ from charts import create_charts, extract_egg_price_chart, get_beyond_meat_bond_
 from models.data_models import (
     TopicNewsResponse,
     CohesiveNewsletterResponse,
+    AxiosNewsletterResponse,
     NewsItem,
-    ContentElement
+    ContentElement,
+    NewsStory
 )
 
 def main():
@@ -102,20 +104,20 @@ def main():
             logging.exception(f"Error obtaining response for section: {section['title']}")
     
     try:
-        # Generate cohesive newsletter text with a final API call
+        # Generate Axios-style newsletter with a final API call
         if all_news_items:
-            newsletter_elements, email_subject = generate_cohesive_newsletter(client, all_news_items, prompt_logger)
-            
-            # Generate images for any image descriptions using OpenAI's gpt-image-1.5
-            image_paths = generate_images(client, newsletter_elements)
-            
+            axios_response, email_subject = generate_cohesive_newsletter(client, all_news_items, prompt_logger)
+
+            # Generate images for each story using OpenAI's gpt-image-1.5
+            image_paths = generate_images(client, axios_response)
+
             # Read the HTML newsletter template
             with open(TEMPLATE_PATH, "r", encoding="utf-8") as file:
                 template = file.read()
-                
-            # Generate the HTML for the newsletter using the template and cohesive text
-            newsletter = generate_email_html(template, newsletter_elements, image_paths)
-            
+
+            # Generate the HTML for the newsletter using the template and Axios response
+            newsletter = generate_email_html(template, axios_response, image_paths)
+
             # Log the generated newsletter for debugging
             log_newsletter(prompt_logger, newsletter)
         else:
@@ -123,7 +125,7 @@ def main():
             newsletter = "<html><body><h1>Daily Briefing</h1><p>There was an error generating the newsletter content.</p></body></html>"
             email_subject = None
             image_paths = {}
-            
+
     except Exception as e:
         logging.exception("Error generating newsletter HTML")
         # Fallback to a simple HTML message
@@ -138,35 +140,34 @@ def main():
     send_email(newsletter, email_subject, send_to_everyone, image_paths)
     logging.info("Daily briefing process completed successfully.")
 
-def generate_images(client: OpenAI, newsletter_elements: List[ContentElement]) -> Dict[str, str]:
+def generate_images(client: OpenAI, axios_response: AxiosNewsletterResponse) -> Dict[str, str]:
     """
-    Generates images using OpenAI's gpt-image-1.5 for any image_description elements.
+    Generates images using OpenAI's gpt-image-1.5 for each story's image_description.
 
     Args:
         client: The OpenAI client instance
-        newsletter_elements: List of newsletter content elements
+        axios_response: The Axios-style newsletter response with stories
 
     Returns:
         Dict[str, str]: Dictionary mapping image_id to file path
     """
     image_paths = {}
-    image_counter = 1
 
-    for i, element in enumerate(newsletter_elements):
-        if element.type == "image_description":
-            image_id = f"generated_image_{image_counter}"
-            image_counter += 1
+    for i, story in enumerate(axios_response.stories):
+        if story.image_description:
+            image_id = f"story_image_{i + 1}"
 
             try:
-                logging.info(f"Generating image for: {element.content[:50]}...")
+                logging.info(f"Generating image for story {i + 1}: {story.headline[:50]}...")
 
-                # Get the prompt (content)
-                prompt = element.content
+                # Get the prompt (image_description)
+                prompt = story.image_description
 
                 # Log the image prompt to the prompt logger
                 logging.getLogger('prompts').info(
                     f"\n{'='*80}\nIMAGE GENERATION PROMPT {image_id}\n{'='*80}\n"
-                    f"{prompt}\n"
+                    f"Story: {story.headline}\n"
+                    f"Prompt: {prompt}\n"
                     f"{'='*80}\n"
                 )
 
@@ -189,118 +190,131 @@ def generate_images(client: OpenAI, newsletter_elements: List[ContentElement]) -
 
                 logging.info(f"Image saved to {image_path}")
 
-                # Update the element content to include the image ID for reference
-                element.content = image_id
-
             except Exception as e:
-                logging.exception(f"Error generating image: {e}")
+                logging.exception(f"Error generating image for story {i + 1}: {e}")
 
     return image_paths
 
 def generate_cohesive_newsletter(client: OpenAI, news_items: List[Dict], prompt_logger) -> tuple:
     """
-    Generates a cohesive newsletter from the collected news items.
-    
+    Generates an Axios-style newsletter with top 3 stories from the collected news items.
+
     Args:
         client: The OpenAI client
         news_items: List of news items from all sections
         prompt_logger: Logger for prompts and responses
-        
+
     Returns:
-        tuple: (newsletter_elements, email_subject)
+        tuple: (AxiosNewsletterResponse, email_subject)
     """
-    # Create the prompt for generating cohesive text
+    # Create the prompt for generating Axios-style newsletter
     system_prompt = (
-        f"You are writing a personalized daily briefing for {USER_PERSONALITY}. "
-        f"Create a cohesive daily briefing with a custom subject line and content elements from the news items provided. "
-        f"The tone should be {NEWSLETTER_TONE}. "
-        "\n\nThe primary goal of this briefing is to keep the reader informed about:"
-        "\n1. Developments in the alternative protein industry that might affect investment decisions"
-        "\n2. Updates in the vegan movement that could influence donation strategies"
-        "\n3. Recent AI developments, especially new tools that could be useful for work"
-        "\n\nThe text should flow naturally between topics, with smooth transitions. "
-        "Include all important information from each news item. "
-        "Ensure you include citations to sources for each piece of information. "
-        "IMPORTANT: Create hyperlinks to original sources using HTML anchor tags. For each news item, include at least one link to the source_link when available. "
-        "IMPORTANT: Seamlessly integrate citations within the text flow. Instead of using parentheses, use phrases like 'according to <a href=\"source_link\">source_name</a>', 'as reported by <a href=\"source_link\">source_name</a>', 'in a recent article from <a href=\"source_link\">source_name</a>', etc."
-        "For emails, mention the sender name and subject line naturally in the text."
-        
-        # Add specific guidance about tempering enthusiastic claims
-        "\n\nIMPORTANT: Maintain a measured, thoughtful tone even when reporting on enthusiastic or bold claims from the sources. "
-        "When sources make ambitious projections or strong claims:"
-        "\n- Present these with appropriate context and qualification"
-        "\n- Use phrases like 'aims to,' 'is working toward,' or 'the company suggests that' rather than stating projections as certainties"
-        "\n- If a source uses particularly hyperbolic language, tone it down while preserving the core information"
-        "\n- Distinguish between factual developments (funding secured, products launched) and speculative claims or forecasts"
-        "\n- Where appropriate, note that certain statements reflect the source's perspective rather than established facts"
-        "\n- Use language like 'according to the announcement' or 'in their report' to attribute claims to their sources"
-        "\nThe goal is to present information faithfully but with appropriate nuance and critical distance."
-        
-        "\n\nIMPORTANT: Your output will be formatted as follows:"
-        "\n1. A custom email subject line that captures the essence of today's briefing"
-        "\n2. A list of content elements, each marked as either 'paragraph', 'heading', or 'image_description'"
-        "\n\nFor content that would be enclosed in <p> tags, mark it as 'paragraph'."
-        "\nFor content that would be enclosed in <h2> tags, mark it as 'heading'."
-        "\nFor visual prompts that would be used to generate images with Stability AI, mark as 'image_description'. "
-        
-        "\n\nFor image descriptions:"
-        "\n- Include 3-4 image descriptions throughout the newsletter at appropriate points"
-        "\n- Make each image description HIGHLY SPECIFIC to the actual news items you just mentioned in the preceding paragraphs"
-        "\n- Base each image directly on the most visually interesting or important news item from that section"
-        "\n- Create EXTREMELY DETAILED visual descriptions (2-4 sentences) focusing on:"
-        "\n  * Specific scene elements (location, background, lighting, time of day)"
-        "\n  * Objects or subjects that should appear (people, products, animals, technology)"
-        "\n  * Visual style (photorealistic, illustrated, cinematic, documentary-style)"
-        "\n  * Color palette and mood (vibrant, muted, dramatic, hopeful)"
-        "\n  * Composition elements (foreground, background, framing, perspective)"
-        "\n- Position image descriptions after discussing the relevant news item, not before"
-        "\n- IMPORTANT: Avoid requesting infographics, charts, diagrams, or any form of text in the images"
-        "\n- IMPORTANT: Focus on photorealistic scenes, objects, or environments rather than data visualizations"
-        "\n- IMPORTANT: Describe imagery that can be purely visual without relying on text to convey meaning"
-        "\n- Use a photorealistic style unless specifically noting otherwise"
-        "\n- For each image description, also create a brief caption (1-2 sentences) that will appear below the image"
-        "\n- The caption should explain what the image represents"
-        "\n- Do NOT make the caption sound like it's describing a real photograph or actual event"
-        
-        "\n\nDO include HTML formatting in the content text itself as needed (e.g., <a> tags for links, <strong>, <em>, etc.)."
-        "\nDO NOT include the structural <p> and <h2> tags - we will add those programmatically based on your type markers."
-        "\n\nEnsure all citations are woven naturally into the flow of the appropriate paragraph."
+        f"You are writing 'Future Appetite' - a daily newsletter for {USER_PERSONALITY}. "
+        f"Create a sharp, scannable newsletter highlighting the TOP 3 stories using Smart Brevity principles. "
+
+        "\n\n=== SMART BREVITY WRITING STYLE ==="
+        "\nEvery word must earn its place. Write like a sharp, well-informed colleague."
+        "\n"
+        "\n• Lead with the news, not background"
+        "\n• Short sentences (under 20 words)"
+        "\n• Active voice: 'Company launched X' not 'X was launched'"
+        "\n• Specific details: numbers, names, dates"
+        "\n• Skip hype: if source says 'revolutionary,' you say 'new'"
+        "\n• No throat-clearing phrases"
+        "\n• Skeptical but fair"
+
+        "\n\n=== STORY SELECTION (exactly 3) ==="
+        "\nPick stories that are:"
+        "\n• Actionable - affects investment, donation, or work decisions"
+        "\n• Timely - happened in the last 24 hours"
+        "\n• Surprising or significant"
+        "\n"
+        "\nAim for variety: alt-protein, vegan movement, AI tools."
+
+        "\n\n=== FORMAT FOR EACH STORY ==="
+        "\n"
+        "\n1. HEADLINE: 5-8 words, convey the core news"
+        "\n"
+        "\n2. THREE BULLETS with these exact labels:"
+        "\n   • 'What' - The news in 1-2 crisp sentences"
+        "\n   • 'Why it matters' - The 'so what' for this reader"
+        "\n   • 'Go deeper' - Source attribution with link (or email sender/subject)"
+        "\n"
+        "\n3. IMAGE DESCRIPTION: For AI image generation"
+        "\n"
+        "\n4. CAPTION: One line for the image"
+
+        "\n\n=== INTRO ==="
+        "\nStart with a bold greeting like 'Happy Tuesday!' or similar."
+        "\nThen one sentence teasing what's in this edition."
+        "\nExample: '<strong>Happy Tuesday!</strong> Big retail moves in alt-protein today, plus an AI tool worth knowing.'"
+
+        "\n\n=== SUBJECT LINE ==="
+        "\nHighlight your top story. Under 50 characters."
+        "\nGood: 'Oatly Stock Hits 52-Week Low'"
+        "\nBad: 'Your Daily Update: News and More'"
+
+        "\n\n=== LINK FORMATTING ==="
+        "\nUse HTML: <a href=\"URL\">source name</a>"
+        "\nFor emails: mention sender and subject (no link needed)"
+
+        "\n\n=== IMAGE GUIDELINES ==="
+        "\nCreate photorealistic image descriptions (2-3 sentences)."
+        "\n• Write prompts that produce images looking like real photographs"
+        "\n• Include specific details: lighting, angle, setting, subjects"
+        "\n• Think: professional news photography, documentary style"
+        "\n• Describe realistic scenes with natural compositions"
+        "\n• AVOID: text, logos, charts, obvious AI artifacts"
+        "\n• Caption: brief, written as if describing a real photo"
     )
-    
+
     # Convert news items to a string for the API call
     news_items_str = json.dumps(news_items)
     user_content = f"<news_items>{news_items_str}</news_items>"
-    
+
     # Log the final prompt
-    log_section_prompt(prompt_logger, "COHESIVE NEWSLETTER", system_prompt, user_content)
-    
+    log_section_prompt(prompt_logger, "AXIOS NEWSLETTER", system_prompt, user_content)
+
     # Prepare messages for the API call
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_content}
     ]
-    
+
     try:
-        # Make API call
+        # Make API call with Axios-style response model
         response = call_openai_parse_with_backoff(
             client,
             messages,
-            CohesiveNewsletterResponse,
+            AxiosNewsletterResponse,
             model=AI_MODEL
         )
-        
-        # Extract the subject and content elements
-        email_subject = response.choices[0].message.parsed.subject
-        content_elements = response.choices[0].message.parsed.content_elements
-        
+
+        # Extract the parsed response
+        axios_response = response.choices[0].message.parsed
+        email_subject = axios_response.subject
+
         # Log the response
-        log_section_response(prompt_logger, "COHESIVE NEWSLETTER", 
-                            f"Subject: {email_subject}\n\nContent:\n{json.dumps([elem.model_dump() for elem in content_elements])}")
-        
-        return content_elements, email_subject
+        log_section_response(prompt_logger, "AXIOS NEWSLETTER",
+                            f"Subject: {email_subject}\n\nIntro: {axios_response.intro}\n\nStories:\n{json.dumps([story.model_dump() for story in axios_response.stories])}")
+
+        return axios_response, email_subject
     except Exception as e:
-        logging.exception("Error generating cohesive newsletter text")
-        return [ContentElement(type="paragraph", content="Error generating newsletter content.")], None
+        logging.exception("Error generating Axios-style newsletter")
+        # Return a minimal fallback response
+        from models.data_models import StoryBullet
+        fallback_story = NewsStory(
+            headline="Error generating newsletter",
+            bullets=[StoryBullet(label="What:", text="There was an error generating the newsletter content.")],
+            image_description=None,
+            image_caption=None
+        )
+        fallback_response = AxiosNewsletterResponse(
+            subject="Daily Briefing",
+            intro="There was an error generating today's briefing.",
+            stories=[fallback_story]
+        )
+        return fallback_response, None
 
 if __name__ == "__main__":
     main() 

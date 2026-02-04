@@ -2,114 +2,195 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Your Daily Briefing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Future Appetite</title>
   <style>
-    /* Basic reset for emails */
-    body, p, h1, h2, ul, li {
+    /* Reset */
+    body, p, h1, h2, h3, ul, li {
       margin: 0;
       padding: 0;
     }
+
+    /* Clean, minimal base */
     body {
-      background-color: #f5f5f5;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       line-height: 1.6;
-      padding: 20px;
-      color: #333;
+      padding: 0;
+      color: #000000;
+      font-size: 17px;
+      -webkit-font-smoothing: antialiased;
     }
+
+    /* Container */
     .container {
       max-width: 600px;
       margin: 0 auto;
       background-color: #ffffff;
-      border-radius: 8px;
-      border: 1px solid #e0e0e0;
-      padding: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      padding: 0;
     }
+
+    /* Header - clean and simple */
     .header {
-      text-align: center;
-      background-color: #1e3d59; /* Dark navy blue from Beyond Meat bond chart */
-      color: #ffffff;
-      padding: 20px;
-      border-radius: 6px;
-      margin-bottom: 25px;
+      padding: 24px 20px 20px 20px;
+      border-bottom: 1px solid #e0e0e0;
     }
     .header h1 {
       font-size: 28px;
-      margin-bottom: 5px;
+      font-weight: 700;
+      color: #000000;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+    .header .byline {
+      font-size: 14px;
+      color: #666666;
+    }
+
+    /* Main content area */
+    .content {
+      padding: 24px 20px;
+    }
+
+    /* Intro text */
+    .intro-text {
+      font-size: 17px;
+      color: #000000;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+    .intro-text strong {
       font-weight: 700;
     }
-    .header p {
-      font-style: italic;
-      opacity: 0.9;
+
+    /* Story section */
+    .story-section {
+      margin-bottom: 32px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid #e0e0e0;
     }
-    .content {
-      margin: 20px 0;
+    .story-section:last-of-type {
+      border-bottom: none;
+      padding-bottom: 0;
     }
-    .content p {
-      margin-bottom: 15px;
-      font-size: 16px;
+
+    /* Story header - "1 big thing:" style */
+    .story-header {
+      font-size: 24px;
+      font-weight: 400;
+      color: #000000;
+      margin-bottom: 16px;
+      line-height: 1.3;
     }
-    .content h2 {
-      color: #1e3d59; /* Dark navy blue from Beyond Meat bond chart */
-      margin-top: 25px;
-      margin-bottom: 10px;
-      border-bottom: 2px solid #f0f0f0;
-      padding-bottom: 5px;
+    .story-number {
+      color: #666666;
     }
-    .content a {
-      color: #1e3d59; /* Dark navy blue from Beyond Meat bond chart */
+
+    /* Story content paragraphs */
+    .story-content p {
+      font-size: 17px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+      color: #000000;
+    }
+    .story-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Bold lead-ins */
+    .lead-in {
+      font-weight: 700;
+    }
+
+    /* Bullet list */
+    .story-content ul {
+      margin: 16px 0;
+      padding-left: 24px;
+      list-style-type: disc;
+    }
+    .story-content li {
+      font-size: 17px;
+      line-height: 1.6;
+      margin-bottom: 12px;
+      color: #000000;
+    }
+    .story-content li:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Links - simple blue */
+    a {
+      color: #0066cc;
+      text-decoration: none;
+    }
+    a:hover {
       text-decoration: underline;
     }
-    .footer {
-      text-align: center;
-      font-size: 14px;
-      color: #777;
-      border-top: 1px solid #e0e0e0;
-      padding-top: 15px;
-      margin-top: 30px;
-    }
-    /* Financial charts styling */
-    .financial-charts {
-      background-color: #f9f9f9;
-      border-radius: 6px;
-      padding: 15px;
-      margin-top: 25px;
-    }
-    .financial-charts h2 {
-      color: #1e3d59; /* Dark navy blue from Beyond Meat bond chart */
-      text-align: center;
-      margin-bottom: 15px;
-    }
-    .financial-charts img {
+
+    /* Story images */
+    .story-image {
       width: 100%;
-      max-width: 600px;
-      margin-bottom: 15px;
-      border-radius: 4px;
-      border: 1px solid #ddd;
+      margin: 20px 0;
+      border-radius: 0;
     }
-    /* Quote styling */
-    blockquote {
-      border-left: 4px solid #1e3d59; /* Dark navy blue from Beyond Meat bond chart */
-      padding-left: 15px;
-      margin: 15px 0;
-      font-style: italic;
-      color: #555;
-    }
-    /* Emphasis */
-    em {
-      color: #1e3d59; /* Dark navy blue from Beyond Meat bond chart */
-    }
-    strong {
-      color: #333;
-      font-weight: 600;
-    }
-    /* Image caption styling */
+
+    /* Image captions */
     .image-caption {
+      font-size: 13px;
+      color: #666666;
+      margin-top: -12px;
+      margin-bottom: 16px;
+      font-style: italic;
+    }
+
+    /* Go deeper link */
+    .go-deeper {
+      font-size: 17px;
+      margin-top: 16px;
+    }
+    .go-deeper a {
+      color: #0066cc;
+      font-style: italic;
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background-color: #e0e0e0;
+      margin: 28px 0;
+    }
+
+    /* Financial charts section */
+    .financial-section {
+      padding: 24px 20px;
+      border-top: 1px solid #e0e0e0;
+    }
+    .financial-section h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 20px;
+    }
+    .chart-item {
+      margin-bottom: 16px;
+    }
+    .chart-item:last-child {
+      margin-bottom: 0;
+    }
+    .chart-item img {
+      width: 100%;
+      border: 1px solid #e0e0e0;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 20px;
+      border-top: 1px solid #e0e0e0;
       text-align: center;
-      font-size: 14px;
-      color: #555;
-      margin-top: 5px;
-      margin-bottom: 15px;
+    }
+    .footer p {
+      font-size: 13px;
+      color: #666666;
     }
   </style>
 </head>
@@ -117,27 +198,38 @@
   <div class="container">
     <!-- Header -->
     <div class="header">
-      <h1>Your Daily Briefing</h1>
-      <p>Insights that matter, delivered with clarity</p>
+      <h1>Future Appetite</h1>
+      <p class="byline">Alt Protein · Animal Advocacy · AI</p>
     </div>
-    
-    <!-- Main Content - Cohesive Newsletter Text -->
+
+    <!-- Main Content -->
     <div class="content">
       {newsletter_content}
     </div>
 
     <!-- Financial Charts Section -->
-    <div class="financial-charts">
-      <h2>Financial Insights</h2>
-      <img src="cid:bynd-chart" alt="Beyond Meat Chart">
-      <img src="cid:beyond-meat-bond-chart" alt="Beyond Meat Bond Prices">
-      <img src="cid:otly-chart" alt="Oatly Chart">
-      <img src="cid:sp500-chart" alt="S&P 500 Chart">
-      <img src="cid:egg-price-chart" alt="USDA Egg Price Chart">
+    <div class="financial-section">
+      <h2>📊 Market watch</h2>
+      <div class="chart-item">
+        <img src="cid:bynd-chart" alt="Beyond Meat Stock">
+      </div>
+      <div class="chart-item">
+        <img src="cid:beyond-meat-bond-chart" alt="Beyond Meat Bond">
+      </div>
+      <div class="chart-item">
+        <img src="cid:otly-chart" alt="Oatly Stock">
+      </div>
+      <div class="chart-item">
+        <img src="cid:sp500-chart" alt="S&P 500">
+      </div>
+      <div class="chart-item">
+        <img src="cid:egg-price-chart" alt="Egg Prices">
+      </div>
     </div>
-    
+
+    <!-- Footer -->
     <div class="footer">
-      <p>This briefing was curated specifically for you, combining data and insight.</p>
+      <p>Thanks for reading.</p>
     </div>
   </div>
 </body>
