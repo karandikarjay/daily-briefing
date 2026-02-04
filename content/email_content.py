@@ -31,7 +31,8 @@ def get_fast_email_content() -> List[Dict[str, str]]:
         
         mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
         mail.login(GOOGLE_USERNAME, GOOGLE_PASSWORD)
-        mail.select("inbox")
+        # Search All Mail to find emails regardless of folder/label (including auto-archived)
+        mail.select('"[Gmail]/All Mail"')
 
         # Convert the start and end dates to the format required by IMAP (DD-MMM-YYYY)
         start_date_str = start_time.strftime("%d-%b-%Y")
