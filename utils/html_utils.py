@@ -50,8 +50,13 @@ def _generate_axios_html(template: str, axios_response: AxiosNewsletterResponse,
         newsletter_html += f'<p class="intro-text">{axios_response.intro}</p>\n'
 
     # Generate HTML for each story
+    num_stories = len(axios_response.stories)
     for i, story in enumerate(axios_response.stories):
-        story_html = '<div class="story-section">\n'
+        is_last = (i == num_stories - 1)
+        if is_last:
+            story_html = '<div class="story-section" style="border-bottom:none;padding-bottom:0;">\n'
+        else:
+            story_html = '<div class="story-section">\n'
 
         # Story header with consistent numbering: "1. Headline", "2. Headline", "3. Headline"
         story_html += f'  <h2 class="story-header"><span class="story-number">{i + 1}.</span> {story.headline}</h2>\n'
