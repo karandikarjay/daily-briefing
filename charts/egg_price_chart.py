@@ -1,69 +1,70 @@
 """
 Egg price chart module for the Daily Briefing application.
 
-This module retrieves and processes USDA egg price data from a PDF report.
+This module retrieves average US egg prices from FRED (Federal Reserve Economic Data)
+and generates a matplotlib chart matching the style of the stock charts.
 """
 
 import logging
-import os
-import requests
-import fitz  # PyMuPDF
-from PIL import Image
-from config import USDA_PDF_URL, EGG_PRICE_CHART_PATH
+from datetime import datetime, timedelta
+import pandas as pd
+import matplotlib.pyplot as plt
+from config import EGG_PRICE_CHART_PATH, CHART_STYLE, CHART_COLOR, GRID_COLOR, BACKGROUND_COLOR, CHART_DPI
+
+# FRED series: Average Price, Eggs, Grade A, Large ($/dozen), monthly
+FRED_EGG_SERIES_BASE_URL = (
+    "https://fred.stlouisfed.org/graph/fredgraph.csv"
+    "?id=APU0000708111"
+)
+
 
 def extract_egg_price_chart() -> None:
     """
-    Downloads the USDA egg price PDF report, extracts the price graph,
-    and saves it as an image file.
+    Downloads egg price data from FRED and generates a chart
+    in the same style as the stock price charts.
     """
     try:
-        # Create a temporary file path for the PDF
-        pdf_path = os.path.join(os.path.dirname(EGG_PRICE_CHART_PATH), "temp_usda_report.pdf")
-        
-        # Download the PDF file
-        logging.info(f"Downloading USDA egg price PDF from {USDA_PDF_URL}...")
-        response = requests.get(USDA_PDF_URL)
-        
-        if response.status_code != 200:
-            logging.error(f"Failed to download PDF. Status code: {response.status_code}")
+        logging.info("Downloading egg price data from FRED...")
+        one_year_ago = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+        url = f"{FRED_EGG_SERIES_BASE_URL}&cosd={one_year_ago}"
+        df = pd.read_csv(url, parse_dates=["observation_date"])
+        df = df.rename(columns={"observation_date": "date", "APU0000708111": "price"})
+        df = df.dropna(subset=["price"])
+
+        if df.empty:
+            logging.warning("No egg price data returned from FRED. Skipping chart.")
             return
-            
-        # Save the PDF temporarily
-        with open(pdf_path, "wb") as f:
-            f.write(response.content)
-        
-        logging.info(f"PDF downloaded successfully to {pdf_path}")
-        
-        # Open the PDF
-        pdf_document = fitz.open(pdf_path)
-        
-        # Get the first page
-        first_page = pdf_document[0]
-        
-        # Render the page to an image with a higher resolution
-        pix = first_page.get_pixmap(matrix=fitz.Matrix(3, 3))  # 3x zoom for better quality
-        
-        # Convert to PIL Image
-        img_data = pix.samples
-        img = Image.frombytes("RGB", [pix.width, pix.height], img_data)
-        
-        # Crop box (left, upper, right, lower) for the price graph
-        crop_box = (1195, 245, 2250, 595)  # Adjusted to capture full chart with years but no source text
-        
-        # Crop the image
-        cropped_image = img.crop(crop_box)
-        
-        # Save the cropped image
-        cropped_image.save(EGG_PRICE_CHART_PATH)
-        
-        # Clean up
-        pdf_document.close()
-        
-        # Remove temporary PDF file
-        if os.path.exists(pdf_path):
-            os.remove(pdf_path)
-            
-        logging.info(f"USDA egg price chart extracted and saved to: {EGG_PRICE_CHART_PATH}")
-        
+
+        logging.info(f"FRED egg prices: {len(df)} data points from {df['date'].iloc[0].date()} to {df['date'].iloc[-1].date()}")
+
+        plt.style.use(CHART_STYLE)
+        plt.figure(figsize=(10, 6), facecolor=BACKGROUND_COLOR)
+        ax = plt.gca()
+        ax.set_facecolor(BACKGROUND_COLOR)
+
+        plt.plot(df["date"], df["price"], color=CHART_COLOR, linewidth=2)
+        plt.grid(True, linestyle="--", alpha=0.7, color=GRID_COLOR)
+
+        # Annotate the most recent price
+        latest_date = df["date"].iloc[-1]
+        latest_price = df["price"].iloc[-1]
+        plt.annotate(
+            f"${latest_price:.2f}",
+            xy=(latest_date, latest_price),
+            xytext=(latest_date + pd.Timedelta(days=8), latest_price),
+            fontsize=14,
+            color=CHART_COLOR,
+            ha="left",
+            va="center",
+        )
+
+        plt.title("US Egg Prices ($/dozen)", color=CHART_COLOR, fontsize=18, pad=20, fontweight="bold")
+        ax.tick_params(colors=CHART_COLOR, labelsize=12)
+        plt.tight_layout()
+        plt.savefig(EGG_PRICE_CHART_PATH, dpi=CHART_DPI, bbox_inches="tight", facecolor=BACKGROUND_COLOR)
+        plt.close()
+
+        logging.info(f"Egg price chart saved to: {EGG_PRICE_CHART_PATH}")
+
     except Exception as e:
-        logging.exception(f"Error extracting egg price chart: {e}") 
+        logging.exception(f"Error generating egg price chart: {e}")

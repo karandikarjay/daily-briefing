@@ -229,12 +229,12 @@ def generate_cohesive_newsletter(client: Anthropic, news_items: List[Dict], prom
         "\n• Skeptical but fair"
 
         "\n\n=== STORY SELECTION (exactly 3) ==="
-        "\nPick stories that are:"
-        "\n• Actionable - affects investment, donation, or work decisions"
-        "\n• Timely - happened in the last 24 hours"
-        "\n• Surprising or significant"
+        "\nYou MUST pick exactly one story from each topic:"
+        "\n• Story 1: Alternative Protein"
+        "\n• Story 2: Vegan Movement"
+        "\n• Story 3: AI"
         "\n"
-        "\nAim for variety: alt-protein, vegan movement, AI tools."
+        "\nWithin each topic, pick the story that is most actionable, timely, and significant."
 
         "\n\n=== FORMAT FOR EACH STORY ==="
         "\n"

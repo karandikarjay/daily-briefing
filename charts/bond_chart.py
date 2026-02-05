@@ -30,40 +30,36 @@ def get_beyond_meat_bond_chart() -> None:
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--enable-unsafe-swiftshader")
     chrome_options.add_argument("--blink-settings=imagesEnabled=true")
-    chrome_options.page_load_timeout = 90  # Increase page load timeout
+    chrome_options.page_load_timeout = 60
 
     driver = None
-    
+
     try:
         logging.info("Initializing Chrome driver for Beyond Meat bond chart...")
         driver = webdriver.Chrome(options=chrome_options)
-        driver.set_page_load_timeout(90)  # Set page load timeout to 90 seconds
+        driver.set_page_load_timeout(60)
 
         # Navigate to the page
         logging.info(f"Navigating to {BEYOND_MEAT_BOND_URL}...")
         driver.get(BEYOND_MEAT_BOND_URL)
         
-        # Wait for the main chart container (increased timeout to avoid timeouts on slow connections)
-        wait = WebDriverWait(driver, 60)
+        wait = WebDriverWait(driver, 30)
         logging.info("Waiting for chart container to load...")
         chart_container = wait.until(EC.presence_of_element_located((By.ID, "DetailChart")))
-        
-        # Give the page more time to completely load and render the chart
-        time.sleep(10)
-        
-        # Scroll to make the chart visible before interacting
+
+        # Brief pause for chart JS to initialize, then scroll into view
+        time.sleep(3)
         driver.execute_script("arguments[0].scrollIntoView(true);", chart_container)
-        time.sleep(10)
-        
+        time.sleep(2)
+
         # Try to select 1Y (1 Year) time period
         try:
             logging.info("Attempting to select 1-year chart view...")
             one_year_tab = wait.until(EC.element_to_be_clickable(
                 (By.XPATH, "//div[contains(@class, 'tab__item') and text()='1y']")))
-            
-            # Use JavaScript to click the tab
+
             driver.execute_script("arguments[0].click();", one_year_tab)
-            time.sleep(10)  # Wait for the chart to update
+            time.sleep(3)  # Wait for the chart to update
         except Exception as e:
             logging.warning(f"Could not click 1y tab: {e}")
         

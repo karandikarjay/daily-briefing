@@ -54,8 +54,7 @@ MAX_OUTPUT_TOKENS = 8192  # Maximum output tokens for Claude
 # Email template path
 TEMPLATE_PATH = os.path.join(SCRIPT_DIR, "template.html")
 
-# USDA Egg Price Chart URL and path
-USDA_PDF_URL = "https://www.ams.usda.gov/mnreports/ams_3725.pdf"
+# Egg Price Chart path
 EGG_PRICE_CHART_PATH = os.path.join(SCRIPT_DIR, 'egg-price-chart.png')
 
 # Beyond Meat Bond Chart URL
@@ -88,7 +87,7 @@ TICKERS = {
 }
 
 # User personality and preferences for personalized content
-USER_PERSONALITY = "a philanthropist who donates to nonprofits working to create a vegan world and an investor in alternative protein startups. They are excited about the potential of AI to supercharge their efforts"
+USER_PERSONALITY = "a philanthropist funding farmed animal advocacy nonprofits and an investor in alternative protein companies across all stages (seed to public). They use AI tools daily for research, writing, coding, and automation, and want to know about new tools they can put to work immediately"
 
 # Newsletter tone settings
 NEWSLETTER_TONE = "conversational and engaging - like a well-informed colleague, who has experienced the ups and downs of market cycles and overhyped startups and doesn't easily get excited, giving you updates. Avoid the the gratuitous use of similes and metaphors."
@@ -107,25 +106,32 @@ SECTIONS = [
         "title": "Alternative Protein",
         "prompt": (
             f"You are an analyst specializing in the alternative protein industry. {COMMON_PROMPT_ELEMENTS} "
-            "Focus on recent developments, especially funding rounds and new product launches."
+            "Prioritize: (1) market and consumer trends — retail launches, restaurant partnerships, consumer adoption data, market share shifts; "
+            "(2) investment signals — funding rounds, M&A, IPOs, earnings, and company financials across all stages from seed to public. "
+            "De-prioritize pure science/R&D unless it has near-term commercial implications."
         ),
         "content_type": "articles"
     },
     {
         "title": "Vegan Movement",
         "prompt": (
-            f"You are an analyst specializing in the vegan movement and animal welfare. {COMMON_PROMPT_ELEMENTS} "
-            "Focus on recent accomplishments, new research, and lessons learned that would be relevant to philanthropists. "
-            "Note that Farmed Animal Strategic Team (FAST) is not the name of an organization, but simply the name of an email list where people in the vegan movement share updates."
+            f"You are an analyst specializing in farmed animal advocacy. {COMMON_PROMPT_ELEMENTS} "
+            "Prioritize: (1) organizational effectiveness — which groups are achieving measurable results, strategic pivots, leadership changes, and lessons learned; "
+            "(2) research and data — new studies on intervention effectiveness, public opinion shifts, and movement strategy. "
+            "The reader is a philanthropist deciding where to direct donations, so focus on what helps evaluate which organizations and approaches are working. "
+            "Scope is farmed animals only — skip wildlife, companion animal, and non-farmed-animal stories. "
+            "Note that Farmed Animal Strategic Team (FAST) is not the name of an organization, but simply the name of an email list where people in the farmed animal movement share updates."
         ),
         "content_type": "emails"
     },
     {
         "title": "AI",
         "prompt": (
-            f"You are an analyst specializing in artificial intelligence. {COMMON_PROMPT_ELEMENTS} "
-            "Focus on new AI developments that could increase personal productivity and cutting-edge advancements from "
-            "major AI companies."
+            f"You are an analyst specializing in practical AI tools. {COMMON_PROMPT_ELEMENTS} "
+            "Focus exclusively on AI tools and features the reader can use right now. "
+            "The reader's workflow includes: research and analysis, writing and communications, coding and automation, and general productivity. "
+            "Prioritize new tool launches, major feature updates, and practical how-to insights. "
+            "Skip industry fundraising news, corporate strategy, AI policy/safety debates, and research papers unless they resulted in a usable product."
         ),
         "content_type": "articles"
     }
@@ -150,18 +156,21 @@ SMTP_PORT = 587
 # Tavily web search configuration
 TAVILY_QUERIES = {
     "Alternative Protein": [
-        "alternative protein industry news",
-        "cultivated meat cellular agriculture",
-        "plant-based meat dairy funding startup",
+        "alternative protein market consumer retail launch partnership",
+        "plant-based meat dairy sales market share grocery restaurant",
+        "alternative protein investment funding M&A IPO startup",
+        "cultivated meat fermentation company funding commercialization",
     ],
     "Vegan Movement": [
-        "vegan movement animal welfare policy",
-        "animal rights legislation advocacy",
+        "Humane League Mercy For Animals Animal Equality campaign news",
+        "factory farming cage-free ban legislation policy",
+        "farmed animal welfare intervention study effectiveness",
+        "Compassion in World Farming corporate pledge progress",
     ],
     "AI": [
-        "artificial intelligence breakthrough news",
-        "AI tools productivity enterprise",
-        "OpenAI Anthropic Google AI launch",
+        "new AI tool app launch productivity automation",
+        "AI writing coding assistant new feature update",
+        "AI workflow automation tool release",
     ],
 }
 TAVILY_MAX_RAW_CONTENT_CHARS = 8000

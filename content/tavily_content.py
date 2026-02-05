@@ -61,8 +61,11 @@ def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
 
     client = TavilyClient(api_key=TAVILY_API_KEY)
     days = _get_search_days()
+    start_time, end_time = get_content_collection_timeframe()
     seen_urls: set = set()
     results: List[Dict[str, str]] = []
+
+    logging.info(f"Tavily [{section_title}]: filtering articles from {start_time} to {end_time}")
 
     for query in queries:
         try:
@@ -86,16 +89,24 @@ def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
                 if TAVILY_MAX_RAW_CONTENT_CHARS and len(raw_content) > TAVILY_MAX_RAW_CONTENT_CHARS:
                     raw_content = raw_content[:TAVILY_MAX_RAW_CONTENT_CHARS]
 
-                # Use published_date from Tavily if available, otherwise current time
+                # Parse published_date and filter against the exact timeframe
                 published = item.get("published_date")
+                dt = None
                 if published:
                     try:
                         dt = datetime.fromisoformat(published.replace("Z", "+00:00"))
-                        dt_str = dt.astimezone(TIMEZONE).isoformat()
+                        dt = dt.astimezone(TIMEZONE)
                     except (ValueError, TypeError):
-                        dt_str = datetime.now(TIMEZONE).isoformat()
-                else:
-                    dt_str = datetime.now(TIMEZONE).isoformat()
+                        dt = None
+
+                if dt and not (start_time <= dt <= end_time):
+                    logging.info(
+                        f"Tavily [{section_title}]: skipping '{item.get('title', '')[:60]}' "
+                        f"— published {dt.isoformat()} is outside timeframe"
+                    )
+                    continue
+
+                dt_str = dt.isoformat() if dt else datetime.now(TIMEZONE).isoformat()
 
                 results.append({
                     "url": url,

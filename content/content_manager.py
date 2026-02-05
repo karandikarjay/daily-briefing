@@ -65,20 +65,28 @@ def get_content(title: str, max_tokens: int = 20000) -> List[Dict[str, Any]]:
         List[Dict[str, Any]]: A list of content items
     """
     all_content = []
-    
+
     if title == "Alternative Protein":
         all_content.extend(get_tavily_content("Alternative Protein"))
     elif title == "Vegan Movement":
-        all_content.extend(get_fast_email_content())
-        all_content.extend(get_tavily_content("Vegan Movement"))
+        # FAST emails are the primary source — reserve token budget for them
+        fast_content = get_fast_email_content()
+        tavily_content = get_tavily_content("Vegan Movement")
+        fast_tokens = num_tokens_from_string(json.dumps(fast_content)) if fast_content else 0
+        tavily_budget = max(0, max_tokens - fast_tokens)
+        if tavily_content:
+            tavily_content = limit_content_by_tokens(tavily_content, tavily_budget, f"{title} (Tavily)")
+        all_content.extend(fast_content)
+        all_content.extend(tavily_content)
+        return all_content
     elif title == "AI":
         all_content.extend(get_tavily_content("AI"))
     else:
         logging.warning(f"No content retrieval function defined for title: {title}")
         return all_content
-    
+
     # Apply token limit to the combined content
     if all_content:
         all_content = limit_content_by_tokens(all_content, max_tokens, title)
-    
+
     return all_content
