@@ -18,6 +18,7 @@ load_dotenv(override=True)
 # API Keys and credentials
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 GOOGLE_USERNAME = os.getenv("GOOGLE_USERNAME")
 GOOGLE_PASSWORD = os.getenv("GOOGLE_PASSWORD")
 
@@ -146,10 +147,24 @@ IMAP_PORT = 993
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
-# Source URLs
-GREEN_QUEEN_SITEMAP_URL = "https://www.greenqueen.com.hk/sitemap_index.xml"
-VEGCONOMIST_RSS_URL = "https://vegconomist.com/feed/"
-RUNDOWN_RSS_URL = "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml"
+# Tavily web search configuration
+TAVILY_QUERIES = {
+    "Alternative Protein": [
+        "alternative protein industry news",
+        "cultivated meat cellular agriculture",
+        "plant-based meat dairy funding startup",
+    ],
+    "Vegan Movement": [
+        "vegan movement animal welfare policy",
+        "animal rights legislation advocacy",
+    ],
+    "AI": [
+        "artificial intelligence breakthrough news",
+        "AI tools productivity enterprise",
+        "OpenAI Anthropic Google AI launch",
+    ],
+}
+TAVILY_MAX_RAW_CONTENT_CHARS = 8000
 
 FAST_EMAILS = [
     "fast-farm-animal-strategic-team@googlegroups.com",

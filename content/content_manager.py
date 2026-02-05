@@ -8,11 +8,8 @@ based on the section title.
 import logging
 import json
 from typing import List, Dict, Any
-from .rss_content import (
-    get_rundown_content, get_vegconomist_content
-)
+from .tavily_content import get_tavily_content
 from .email_content import get_fast_email_content
-from .sitemap_content import get_gq_content
 from utils.api_utils import num_tokens_from_string
 
 def limit_content_by_tokens(content_list: List[Dict[str, Any]], max_tokens: int, section_title: str) -> List[Dict[str, Any]]:
@@ -70,12 +67,12 @@ def get_content(title: str, max_tokens: int = 20000) -> List[Dict[str, Any]]:
     all_content = []
     
     if title == "Alternative Protein":
-        all_content.extend(get_gq_content())
-        all_content.extend(get_vegconomist_content())
+        all_content.extend(get_tavily_content("Alternative Protein"))
     elif title == "Vegan Movement":
         all_content.extend(get_fast_email_content())
+        all_content.extend(get_tavily_content("Vegan Movement"))
     elif title == "AI":
-        all_content.extend(get_rundown_content())
+        all_content.extend(get_tavily_content("AI"))
     else:
         logging.warning(f"No content retrieval function defined for title: {title}")
         return all_content
