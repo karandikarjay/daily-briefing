@@ -41,8 +41,12 @@ def send_email(html_content: str, subject: str = None, send_to_everyone: bool = 
     else:
         email_subject = f"Daily Briefing - {today}"
     
+    # Derive a +list alias for easier filtering
+    local, domain = GOOGLE_USERNAME.split("@")
+    to_address = f"{local}+list@{domain}"
+
     # Determine recipients based on the send_to_everyone flag
-    recipients = [GOOGLE_USERNAME]
+    recipients = [to_address]
     bcc_recipients = RECIPIENT_EMAILS if send_to_everyone else []
     
     try:
@@ -50,7 +54,7 @@ def send_email(html_content: str, subject: str = None, send_to_everyone: bool = 
         msg = MIMEMultipart('related')
         msg['Subject'] = email_subject
         msg['From'] = GOOGLE_USERNAME
-        msg['To'] = GOOGLE_USERNAME
+        msg['To'] = to_address
         
         # Attach HTML content
         msg_alternative = MIMEMultipart('alternative')
