@@ -16,7 +16,7 @@ from typing import List, Dict, Any, Optional, Callable
 from zoneinfo import ZoneInfo
 from utils.html_utils import clean_html_content
 from utils.api_utils import num_tokens_from_string, get_content_collection_timeframe
-from config import HEADERS, RUNDOWN_RSS_URL, VEGCONOMIST_RSS_URL, TIMEZONE
+from config import HEADERS, VEGCONOMIST_RSS_URL, TIMEZONE
 import time
 
 def fetch_and_parse_rss(rss_url: str) -> Optional[feedparser.FeedParserDict]:

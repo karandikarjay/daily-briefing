@@ -106,7 +106,13 @@ def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
                     )
                     continue
 
-                dt_str = dt.isoformat() if dt else datetime.now(TIMEZONE).isoformat()
+                if not dt:
+                    logging.warning(
+                        f"Tavily [{section_title}]: no published date for '{item.get('title', '')[:60]}' "
+                        f"— including based on Tavily recency filter (days={days})"
+                    )
+
+                dt_str = dt.isoformat() if dt else None
 
                 results.append({
                     "url": url,

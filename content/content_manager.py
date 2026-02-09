@@ -10,6 +10,8 @@ import json
 from typing import List, Dict, Any
 from .tavily_content import get_tavily_content
 from .email_content import get_fast_email_content
+from .sitemap_content import get_gq_content
+from .rss_content import get_vegconomist_content
 from utils.api_utils import num_tokens_from_string
 
 def limit_content_by_tokens(content_list: List[Dict[str, Any]], max_tokens: int, section_title: str) -> List[Dict[str, Any]]:
@@ -32,7 +34,7 @@ def limit_content_by_tokens(content_list: List[Dict[str, Any]], max_tokens: int,
     content = content_list.copy()
     
     # Sort content by datetime (oldest first)
-    content.sort(key=lambda x: x.get("datetime", ""))
+    content.sort(key=lambda x: x.get("datetime") or "")
     
     # Calculate total tokens based on the JSON string that will be used in the prompt
     total_tokens = num_tokens_from_string(json.dumps(content))
@@ -67,6 +69,8 @@ def get_content(title: str, max_tokens: int = 20000) -> List[Dict[str, Any]]:
     all_content = []
 
     if title == "Alternative Protein":
+        all_content.extend(get_gq_content())
+        all_content.extend(get_vegconomist_content())
         all_content.extend(get_tavily_content("Alternative Protein"))
     elif title == "Vegan Movement":
         # FAST emails are the primary source — reserve token budget for them

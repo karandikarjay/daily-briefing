@@ -235,6 +235,7 @@ def generate_cohesive_newsletter(client: Anthropic, news_items: List[Dict], prom
         "\n• Story 3: AI"
         "\n"
         "\nWithin each topic, pick the story that is most actionable, timely, and significant."
+        "\nDo NOT invent stories or reassign stories from one topic to another. Only use the news items provided for each topic."
 
         "\n\n=== FORMAT FOR EACH STORY ==="
         "\n"
@@ -259,6 +260,10 @@ def generate_cohesive_newsletter(client: Anthropic, news_items: List[Dict], prom
         "\nHighlight your top story. Under 50 characters."
         "\nGood: 'Oatly Stock Hits 52-Week Low'"
         "\nBad: 'Your Daily Update: News and More'"
+
+        "\n\n=== ACCURACY ==="
+        "\nDo NOT expand acronyms or abbreviations unless the expansion is explicitly stated in the source material. "
+        "If an acronym appears without its expansion, use the acronym as-is without guessing what it stands for."
 
         "\n\n=== LINK FORMATTING ==="
         "\nUse HTML: <a href=\"URL\">source name</a>"

@@ -106,6 +106,9 @@ SECTIONS = [
         "title": "Alternative Protein",
         "prompt": (
             f"You are an analyst specializing in the alternative protein industry. {COMMON_PROMPT_ELEMENTS} "
+            "IMPORTANT: Only include stories that are DIRECTLY about alternative protein — that is, about companies, products, or markets "
+            "in plant-based, cultivated, or fermentation-derived protein. Stories about conventional animal agriculture (e.g. livestock production, "
+            "hog breeding, poultry farming) are NOT alternative protein stories, even if they have indirect implications for the alt-protein industry. "
             "Prioritize: (1) market and consumer trends — retail launches, restaurant partnerships, consumer adoption data, market share shifts; "
             "(2) investment signals — funding rounds, M&A, IPOs, earnings, and company financials across all stages from seed to public. "
             "De-prioritize pure science/R&D unless it has near-term commercial implications."
@@ -152,6 +155,10 @@ IMAP_SERVER = "imap.gmail.com"
 IMAP_PORT = 993
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
+
+# Dedicated news source URLs
+GREEN_QUEEN_SITEMAP_URL = "https://www.greenqueen.com.hk/sitemap_index.xml"
+VEGCONOMIST_RSS_URL = "https://vegconomist.com/feed/"
 
 # Tavily web search configuration
 TAVILY_QUERIES = {
