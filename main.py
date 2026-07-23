@@ -53,7 +53,8 @@ def main():
     logger, prompt_logger = setup_logging()
 
     # Initialize Anthropic client for text generation (Claude)
-    client = Anthropic(api_key=ANTHROPIC_API_KEY)
+    # Disable SDK-level retries because api_utils owns retry/backoff behavior.
+    client = Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0)
 
     # Initialize OpenAI client for image generation
     openai_client = OpenAI(api_key=OPENAI_API_KEY)
@@ -90,7 +91,8 @@ def main():
                 client,
                 messages,
                 TopicNewsResponse,
-                model=AI_MODEL
+                model=AI_MODEL,
+                fallback_client=openai_client
             )
             
             # Add news items from this section to the overall list
@@ -111,7 +113,9 @@ def main():
     try:
         # Generate Axios-style newsletter with a final API call
         if all_news_items:
-            axios_response, email_subject = generate_cohesive_newsletter(client, all_news_items, prompt_logger)
+            axios_response, email_subject = generate_cohesive_newsletter(
+                client, openai_client, all_news_items, prompt_logger
+            )
 
             # Generate images for each story using OpenAI's gpt-image-1.5
             image_paths = generate_images(openai_client, axios_response)
@@ -200,7 +204,12 @@ def generate_images(client: OpenAI, axios_response: AxiosNewsletterResponse) -> 
 
     return image_paths
 
-def generate_cohesive_newsletter(client: Anthropic, news_items: List[Dict], prompt_logger) -> tuple:
+def generate_cohesive_newsletter(
+    client: Anthropic,
+    fallback_client: OpenAI,
+    news_items: List[Dict],
+    prompt_logger
+) -> tuple:
     """
     Generates an Axios-style newsletter with top 3 stories from the collected news items.
 
@@ -298,7 +307,8 @@ def generate_cohesive_newsletter(client: Anthropic, news_items: List[Dict], prom
             client,
             messages,
             AxiosNewsletterResponse,
-            model=AI_MODEL
+            model=AI_MODEL,
+            fallback_client=fallback_client
         )
 
         # Extract the parsed response
@@ -328,4 +338,4 @@ def generate_cohesive_newsletter(client: Anthropic, news_items: List[Dict], prom
         return fallback_response, None
 
 if __name__ == "__main__":
-    main() 
+    main()

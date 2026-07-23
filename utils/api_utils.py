@@ -18,7 +18,8 @@ from zoneinfo import ZoneInfo
 from config import (
     AI_MODEL, MAX_RETRIES, INITIAL_RETRY_DELAY, MAX_RETRY_DELAY,
     MAX_TOKENS_PER_REQUEST, TIMEZONE, IMAGE_MODEL, IMAGE_SIZE,
-    IMAGE_QUALITY, IMAGE_OUTPUT_FORMAT, MAX_OUTPUT_TOKENS
+    IMAGE_QUALITY, IMAGE_OUTPUT_FORMAT, MAX_OUTPUT_TOKENS,
+    TEXT_FALLBACK_MODEL
 )
 
 def num_tokens_from_string(string: str, model: str = "claude-opus-4-5-20251101") -> int:
@@ -330,19 +331,41 @@ def call_openai_parse_with_backoff(
     client,
     messages: List[Dict[str, str]],
     response_model: Type[BaseModel],
-    model: str = AI_MODEL
+    model: str = AI_MODEL,
+    fallback_client: OpenAI = None,
+    fallback_model: str = TEXT_FALLBACK_MODEL
 ) -> Any:
     """
-    Wrapper that routes to Claude API.
+    Routes structured text generation to Claude, with an OpenAI fallback.
     Maintains backward compatibility with existing code that expects OpenAI-style interface.
     """
-    # The client passed in is now an Anthropic client
-    return call_claude_parse_with_backoff(
-        client=client,
-        messages=messages,
-        response_model=response_model,
-        model=model
-    )
+    try:
+        return call_claude_parse_with_backoff(
+            client=client,
+            messages=messages,
+            response_model=response_model,
+            model=model
+        )
+    except Exception:
+        if fallback_client is None:
+            raise
+
+        logging.exception(
+            "Claude structured generation failed after retries; "
+            f"falling back to OpenAI model {fallback_model}"
+        )
+
+        def api_call():
+            return fallback_client.beta.chat.completions.parse(
+                model=fallback_model,
+                messages=messages,
+                response_format=response_model
+            )
+
+        return call_api_with_backoff(
+            api_call=api_call,
+            resource_type="OpenAI fallback completions"
+        )
 
 def get_content_collection_timeframe():
     """
