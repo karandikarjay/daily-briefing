@@ -29,7 +29,7 @@ RECIPIENT_EMAILS = [email.strip() for email in recipient_emails_str.split(",")] 
 # Define AI model to use (Claude Opus 4.5)
 AI_MODEL = "claude-opus-4-5"
 # Used when Anthropic is temporarily unavailable (for example, HTTP 529).
-TEXT_FALLBACK_MODEL = "gpt-5.4-mini"
+TEXT_FALLBACK_MODEL = "gpt-5.6-sol"
 
 # Get the directory where the script is located
 SCRIPT_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
