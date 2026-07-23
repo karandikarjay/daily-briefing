@@ -27,7 +27,7 @@ recipient_emails_str = os.getenv("RECIPIENT_EMAILS", "")
 RECIPIENT_EMAILS = [email.strip() for email in recipient_emails_str.split(",")] if recipient_emails_str else []
 
 # Define AI model to use (Claude Opus 4.5)
-AI_MODEL = "claude-opus-4-5"
+AI_MODEL = "claude-opus-4-8"
 # Used when Anthropic is temporarily unavailable (for example, HTTP 529).
 TEXT_FALLBACK_MODEL = "gpt-5.6-sol"
 
