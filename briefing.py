@@ -93,6 +93,36 @@ def validate_stories(newsletter, verified, start, end):
     return selected
 
 
+def review_stories(client, fallback, newsletter, selected):
+    """A rejected final story is omitted; it cannot prevent valid topics being sent."""
+    evidence = {n['source_id']: n for n in selected}
+    kept, reviews = [], []
+    for story in newsletter.stories:
+        item = evidence[story.source_id]
+        requirements = next(s['prompt'] for s in SECTIONS if s['title'] == story.topic)
+        review = ask(client, fallback, FinalReview,
+            "Check this story against its verified evidence and topic requirements. "
+            "Approve only if every factual claim, date, number, entity and headline is "
+            "supported and the central announcement is new within the verified window. "
+            "Reject old events recast as new, unsupported comparisons and topic mismatches. "
+            "Clearly framed analysis is allowed. Illustrations are not reporting.",
+            {'story': story.model_dump(), 'verified_evidence': item, 'topic_requirements': requirements})
+        reviews.append({'source_id': story.source_id, **review.model_dump()})
+        if review.approved:
+            kept.append(story)
+        else:
+            logging.warning('Omitting final story %s: %s', story.headline, review.reason)
+    newsletter.stories = kept
+    # Derive the intro/subject from approved headlines so removed facts cannot linger.
+    if kept:
+        newsletter.subject = kept[0].headline[:50]
+        newsletter.intro = '<strong>' + datetime.now(TIMEZONE).strftime('Happy %A!') + '</strong> In this edition: ' + '; '.join(html.escape(s.headline) for s in kept) + '.'
+    else:
+        newsletter.subject = 'Future Appetite: Quiet news day'
+        newsletter.intro = 'No verified new developments met the freshness checks for this edition.'
+    return [evidence[s.source_id] for s in kept], {'approved': True, 'story_reviews': reviews}
+
+
 def deliver(directory, everyone=False):
     payload = json.loads((directory / 'delivery.json').read_text())
     newsletter = (directory / 'newsletter.html').read_text()
@@ -164,17 +194,10 @@ def run():
             selected = validate_stories(newsletter, all_news, start, end)
             if not selected:
                 raise ValueError('Writer returned no stories despite verified inputs')
-            review = ask(client, fallback, FinalReview, '''
-Check the drafted newsletter against the supplied verified evidence and topic requirements. Approve only
-if every factual claim is supported, each headline/What describes the verified new
-announcement, and no historical fact is recast as current. 'Why it matters' may offer
-clearly framed analysis, but must not invent facts or current comparisons. Ignore
-illustration descriptions. Check source IDs, quoted numbers, dates, and entities.
-Reject substantive unsupported claims. Return a short reason.
-''', {'newsletter': newsletter.model_dump(), 'verified_evidence': selected, 'topic_requirements': {s['title']: s['prompt'] for s in SECTIONS}})
-            save_json(directory / 'final-review.json', review.model_dump())
-            if not review.approved:
-                raise ValueError('Final factual review rejected newsletter: ' + review.reason)
+            selected, review = review_stories(client, fallback, newsletter, selected)
+            subject = newsletter.subject
+            save_json(directory / 'final-review.json', review)
+
         else:
             from models.data_models import AxiosNewsletterResponse
             newsletter = AxiosNewsletterResponse(subject='Future Appetite: Quiet news day', intro='No verified new developments met the freshness checks for this edition.', stories=[])

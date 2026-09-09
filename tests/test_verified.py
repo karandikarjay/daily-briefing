@@ -203,6 +203,20 @@ class ModelAndDelivery(unittest.TestCase):
             with patch('briefing.STATE', Path(tmp)), patch('briefing.get_content_collection_timeframe', return_value=(END, END)):
                 self.assertEqual(briefing.load_history(include_rejections=True), [])
 
+    def test_failed_final_story_is_omitted_without_losing_valid_story(self):
+        from briefing import review_stories
+        from content.verification import FinalReview
+        bad = NewsStory(source_id='bad', topic='AI', headline='Unverified headline', bullets=[])
+        good = NewsStory(source_id='good', topic='Vegan Movement', headline='Verified advocacy result', bullets=[])
+        newsletter = AxiosNewsletterResponse(subject='Unverified headline', intro='Unverified claim', stories=[bad, good])
+        selected = [{'source_id':'bad'}, {'source_id':'good'}]
+        with patch('briefing.ask', side_effect=[FinalReview(approved=False, reason='Unsupported'), FinalReview(approved=True, reason='Supported')]):
+            accepted, review = review_stories(MagicMock(), MagicMock(), newsletter, selected)
+        self.assertEqual(accepted, [{'source_id':'good'}])
+        self.assertEqual(newsletter.subject, 'Verified advocacy result')
+        self.assertNotIn('Unverified', newsletter.intro)
+        self.assertEqual(len(newsletter.stories), 1)
+
 
 if __name__ == '__main__':
     unittest.main()
