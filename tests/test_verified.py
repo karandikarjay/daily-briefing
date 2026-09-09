@@ -169,7 +169,8 @@ class ModelAndDelivery(unittest.TestCase):
                 send.assert_not_called()
                 previews = list((root / 'previews').glob('*/newsletter.html'))
                 self.assertEqual(len(previews), 1)
-                self.assertIn('No verified new developments', previews[0].read_text())
+                self.assertNotIn('News window:', previews[0].read_text())
+                self.assertEqual(previews[0].read_text().count('class="story-header"'), 3)
                 self.assertFalse((root / 'state' / 'history.json').exists())
 
     def test_private_email_is_not_submitted_to_public_search(self):
@@ -216,6 +217,61 @@ class ModelAndDelivery(unittest.TestCase):
         self.assertEqual(newsletter.subject, 'Verified advocacy result')
         self.assertNotIn('Unverified', newsletter.intro)
         self.assertEqual(len(newsletter.stories), 1)
+
+
+class PresentationAndRefill(unittest.TestCase):
+    def test_dates_are_date_only_and_attribution_uses_announcement_day(self):
+        from briefing import display_date
+        self.assertEqual(display_date('2026-09-07T12:00:00Z'), 'Sep 07, 2026')
+        self.assertEqual(display_date('2026-09-07'), 'Sep 07, 2026')
+        story = NewsStory(source_id='a', topic='AI', headline='Launch', bullets=[])
+        newsletter = AxiosNewsletterResponse(subject='Test', intro='', stories=[story])
+        validate_stories(newsletter, [{'source_id':'a', 'topic':'AI', 'published_at':'2026-09-07T12:00:00Z', 'announcement_date':'2026-09-07', 'source_name':'Publisher', 'source_link':'https://example.com'}], START, END)
+        self.assertTrue(story.bullets[0].text.endswith(' — Sep 07, 2026'))
+        self.assertNotIn('announcement:', story.bullets[0].text)
+
+    def test_missing_middle_section_keeps_heading_styles_and_image_mapping(self):
+        from utils.html_utils import generate_email_html
+        from bs4 import BeautifulSoup
+        newsletter = AxiosNewsletterResponse(subject='Test', intro='', stories=[
+            NewsStory(source_id='a', topic='Alternative Protein', headline='Protein', bullets=[]),
+            NewsStory(source_id='b', topic='AI', headline='AI launch', bullets=[])])
+        output = generate_email_html('{newsletter_content}', newsletter, {'story_image_1':'a', 'story_image_2':'b'}, section_notices={'Vegan Movement':'No story passed selection.'})
+        soup = BeautifulSoup(output, 'html.parser')
+        self.assertEqual([h.get_text() for h in soup.select('h2.story-header')], ['1. Protein', '2. Vegan Movement', '3. AI launch'])
+        self.assertEqual(soup.select('.story-section')[2].img['src'], 'cid:story_image_2')
+
+    def test_preview_replays_same_edition_but_preserves_old_history_and_rejections(self):
+        import briefing
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'history.json').write_text(json.dumps([{'source_id':'old', 'edition_date':'2026-09-07'}, {'source_id':'today', 'edition_date':'2026-09-08'}]))
+            with patch('briefing.STATE', root), patch('briefing.get_content_collection_timeframe', return_value=(START, END)):
+                briefing.remember_rejections([{'candidate':{'source_id':'rejected', 'title':'Old news'}, 'verdict':{'accepted':False, 'reason':'Too old'}}], START, END)
+                self.assertEqual([h['source_id'] for h in briefing.load_history(True, True)], ['old', 'rejected'])
+                self.assertEqual([h['source_id'] for h in briefing.load_history(True)], ['old', 'today', 'rejected'])
+
+    def test_final_rejection_tries_another_candidate(self):
+        from briefing import compose_with_replacements
+        from content.verification import FinalReview
+        section = {'title':'AI', 'prompt':'AI news'}
+        items = [{'source_id':key, 'topic':'AI', 'title':key, 'source_name':'Publisher', 'source_link':'https://example.com/'+key, 'published_at':'2026-09-07T12:00:00Z', 'announcement_date':'2026-09-07'} for key in ('bad', 'good')]
+        def writer(c, f, batch):
+            story = NewsStory(source_id=batch[0]['source_id'], topic='AI', headline=batch[0]['title'], bullets=[])
+            return AxiosNewsletterResponse(subject='Test', intro='', stories=[story]), 'Test'
+        with patch('briefing.SECTIONS', [section]), patch('briefing.select_verified', side_effect=[([items[0]], [{'candidate':{'source_id':'bad'}}]), ([items[1]], [{'candidate':{'source_id':'good'}}])]) as select, patch('briefing.ask', side_effect=[FinalReview(approved=False, reason='Old event'), FinalReview(approved=True, reason='New event')]):
+            newsletter, selected, decisions, review = compose_with_replacements(None, None, {'AI':items}, Freshness(START, END), [], writer)
+        self.assertEqual([s.source_id for s in newsletter.stories], ['good'])
+        self.assertEqual(select.call_args_list[1].args[3], [items[1]])
+        self.assertEqual(len(review['story_reviews']), 2)
+        self.assertNotIn('bad', newsletter.intro)
+
+    def test_empty_shortlist_gets_one_bounded_retry(self):
+        from briefing import compose_with_replacements
+        with patch('briefing.SECTIONS', [{'title':'AI'}]), patch('briefing.select_verified', return_value=([], [])) as select:
+            newsletter, selected, _, _ = compose_with_replacements(None, None, {'AI':[{'source_id':'a'}]}, Freshness(START, END), [], MagicMock())
+        self.assertEqual(select.call_count, 2)
+        self.assertEqual(selected, [])
 
 
 if __name__ == '__main__':

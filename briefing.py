@@ -26,9 +26,12 @@ ROOT = Path(__file__).resolve().parent
 STATE = Path(os.environ.get('BRIEFING_STATE_DIR', str(ROOT / 'state')))
 
 
-def load_history(include_rejections=False):
+def load_history(include_rejections=False, replay_edition=False):
     path = STATE / 'history.json'
     history = json.loads(path.read_text())[-1000:] if path.exists() else []
+    if replay_edition:
+        _, end = get_content_collection_timeframe()
+        history = [h for h in history if h.get('edition_date') != end.date().isoformat()]
     if include_rejections and (STATE / 'excluded-events.json').exists():
         start, end = get_content_collection_timeframe()
         rejected = json.loads((STATE / 'excluded-events.json').read_text())
@@ -66,7 +69,7 @@ def display_date(value):
         return value
     if interval[0] != interval[1]:
         return interval[0].strftime('%b %d, %Y')
-    return interval[0].astimezone(TIMEZONE).strftime('%b %d, %Y, %I:%M %p %Z')
+    return interval[0].astimezone(TIMEZONE).strftime('%b %d, %Y')
 
 
 def validate_stories(newsletter, verified, start, end):
@@ -83,11 +86,9 @@ def validate_stories(newsletter, verified, start, end):
         selected.append(evidence)
         if evidence.get('source_link'):
             attribution = f'<a href="{html.escape(evidence["source_link"], quote=True)}">{html.escape(evidence["source_name"])}</a>'
-            label = 'Published'
         else:
             attribution = html.escape(f'{evidence.get("email_sender") or "FAST Email List"}: {evidence.get("email_subject") or "Announcement"}')
-            label = 'Email received'
-        attribution += f' — {label}: {html.escape(display_date(evidence["published_at"]))}; announcement: {html.escape(display_date(evidence["announcement_date"]))}'
+        attribution += f' — {html.escape(display_date(evidence["announcement_date"]))}'
         story.bullets = [b for b in story.bullets if b.label.rstrip(':').lower() != 'go deeper']
         story.bullets.append(StoryBullet(label='Go deeper', text=attribution))
     return selected
@@ -113,14 +114,51 @@ def review_stories(client, fallback, newsletter, selected):
         else:
             logging.warning('Omitting final story %s: %s', story.headline, review.reason)
     newsletter.stories = kept
+    refresh_summary(newsletter)
+    return [evidence[s.source_id] for s in kept], {'approved': True, 'story_reviews': reviews}
+
+
+def refresh_summary(newsletter):
     # Derive the intro/subject from approved headlines so removed facts cannot linger.
+    kept = newsletter.stories
     if kept:
         newsletter.subject = kept[0].headline[:50]
         newsletter.intro = '<strong>' + datetime.now(TIMEZONE).strftime('Happy %A!') + '</strong> In this edition: ' + '; '.join(html.escape(s.headline) for s in kept) + '.'
     else:
         newsletter.subject = 'Future Appetite: Quiet news day'
         newsletter.intro = 'No verified new developments met the freshness checks for this edition.'
-    return [evidence[s.source_id] for s in kept], {'approved': True, 'story_reviews': reviews}
+
+
+def compose_with_replacements(client, fallback, sources_by_topic, freshness, history, writer):
+    """Try another shortlist after a failed selection or final review, at most twice/topic."""
+    from models.data_models import AxiosNewsletterResponse
+    newsletter = AxiosNewsletterResponse(subject='', intro='', stories=[])
+    selected, decisions, reviews = [], [], []
+    attempted = set()
+    for attempt in range(2):
+        present = {story.topic for story in newsletter.stories}
+        batch = []
+        for section in SECTIONS:
+            if section['title'] in present:
+                continue
+            remaining = [s for s in sources_by_topic.get(section['title'], []) if s['source_id'] not in attempted]
+            verified, audit = select_verified(client, fallback, section, remaining, freshness, history)
+            attempted.update(d['candidate']['source_id'] for d in audit)
+            attempted.update(n['source_id'] for n in verified)
+            decisions.extend(audit)
+            batch.extend(verified)
+        if not batch:
+            continue
+        draft, _ = writer(client, fallback, batch)
+        approved = validate_stories(draft, batch, freshness.start, freshness.end)
+        approved, review = review_stories(client, fallback, draft, approved)
+        selected.extend(approved)
+        newsletter.stories.extend(draft.stories)
+        reviews.extend(review['story_reviews'])
+    order = {section['title']: i for i, section in enumerate(SECTIONS)}
+    newsletter.stories.sort(key=lambda story: order[story.topic])
+    refresh_summary(newsletter)
+    return newsletter, selected, decisions, {'approved': True, 'story_reviews': reviews}
 
 
 def deliver(directory, everyone=False):
@@ -142,7 +180,7 @@ def deliver(directory, everyone=False):
     # Personal tests must not suppress stories for the regular group edition.
     if everyone:
         history = load_history()
-        history.extend({k: n.get(k) for k in ('source_id', 'event_key', 'announcement_date', 'source_link', 'title', 'topic')} for n in payload['selected'])
+        history.extend({**{k: n.get(k) for k in ('source_id', 'event_key', 'announcement_date', 'source_link', 'title', 'topic')}, 'edition_date': payload.get('edition_date')} for n in payload['selected'])
         save_json(STATE / 'history.json', history[-1000:])
     logging.info('Delivery completed: %s', marker)
 
@@ -168,8 +206,8 @@ def run():
         client = Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0)
         fallback = OpenAI(api_key=OPENAI_API_KEY, max_retries=0)
         logging.info('Verified briefing window [%s, %s); primary=%s fallback=%s', start, end, AI_MODEL, TEXT_FALLBACK_MODEL)
-        history = load_history(include_rejections=True)
-        all_news, decisions = [], []
+        history = load_history(include_rejections=True, replay_edition=not args.send_to_everyone)
+        sources_by_topic = {}
         for section in SECTIONS:
             sources = freshness.filter(get_content(section['title']))
             sources = [s for s in sources if not any(s['source_id'] == h.get('source_id') for h in history)]
@@ -181,30 +219,20 @@ def run():
                 sources = emails + articles
             else:
                 sources = limit_content_by_tokens(sources, 20000, section['title'])
-            verified, audit = select_verified(client, fallback, section, sources, freshness, history)
-            all_news.extend(verified)
-            decisions.extend(audit)
+            sources_by_topic[section['title']] = sources
+        newsletter, selected, decisions, review = compose_with_replacements(
+            client, fallback, sources_by_topic, freshness, history,
+            lambda c, f, items: generate_cohesive_newsletter(c, f, items, prompt_logger))
         remember_rejections(decisions, start, end)
         stamp = datetime.now(TIMEZONE).strftime('%Y%m%d-%H%M%S')
         directory = ROOT / 'previews' / stamp
         directory.mkdir(parents=True, mode=0o700)
         save_json(directory / 'audit.json', {'window_start': start.isoformat(), 'window_end_exclusive': end.isoformat(), 'model': AI_MODEL, 'sources': freshness.audit, 'decisions': decisions})
-        if all_news:
-            newsletter, subject = generate_cohesive_newsletter(client, fallback, all_news, prompt_logger)
-            selected = validate_stories(newsletter, all_news, start, end)
-            if not selected:
-                raise ValueError('Writer returned no stories despite verified inputs')
-            selected, review = review_stories(client, fallback, newsletter, selected)
-            subject = newsletter.subject
-            save_json(directory / 'final-review.json', review)
-
-        else:
-            from models.data_models import AxiosNewsletterResponse
-            newsletter = AxiosNewsletterResponse(subject='Future Appetite: Quiet news day', intro='No verified new developments met the freshness checks for this edition.', stories=[])
-            subject, selected = newsletter.subject, []
+        save_json(directory / 'final-review.json', review)
+        subject = newsletter.subject
         present = {n['topic'] for n in selected}
-        quiet = [s['title'] for s in SECTIONS if s['title'] not in present]
-        newsletter.closing = ' '.join(f'{topic}: No verified new developments in this window.' for topic in quiet) or None
+        notices = {s['title']: 'No story passed selection and verification for this edition.' for s in SECTIONS if s['title'] not in present}
+        newsletter.closing = None
         images = generate_images(fallback, newsletter)
         # Copy story images into the immutable preview before SMTP cleanup.
         import shutil
@@ -216,10 +244,9 @@ def run():
         create_charts()
         get_beyond_meat_bond_chart()
         extract_egg_price_chart()
-        rendered = generate_email_html(Path(TEMPLATE_PATH).read_text(), newsletter, saved_images)
-        rendered = rendered.replace('</body>', f'<p style="font-size:12px;color:#777">News window: {html.escape(display_date(start.isoformat()))} to {html.escape(display_date(end.isoformat()))} (exclusive).</p></body>')
+        rendered = generate_email_html(Path(TEMPLATE_PATH).read_text(), newsletter, saved_images, section_notices=notices)
         (directory / 'newsletter.html').write_text(rendered)
-        save_json(directory / 'delivery.json', {'subject': subject, 'selected': selected, 'images': saved_images, 'html_sha256': hashlib.sha256(rendered.encode()).hexdigest()})
+        save_json(directory / 'delivery.json', {'edition_date': end.date().isoformat(), 'subject': subject, 'selected': selected, 'images': saved_images, 'html_sha256': hashlib.sha256(rendered.encode()).hexdigest()})
         logging.info('Validated preview saved to %s', directory)
         if not args.dry_run:
             deliver(directory, everyone=args.send_to_everyone)

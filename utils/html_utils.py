@@ -5,13 +5,15 @@ This module provides functions for generating HTML content for the email newslet
 """
 
 import re
+from html import escape
+from config import SECTIONS
 import logging
 from bs4 import BeautifulSoup
 from typing import List, Dict, Optional, Union
 from models.data_models import ContentElement, AxiosNewsletterResponse
 
 
-def generate_email_html(template: str, newsletter_content: Union[List[ContentElement], AxiosNewsletterResponse], image_paths: Optional[Dict[str, str]] = None) -> str:
+def generate_email_html(template: str, newsletter_content: Union[List[ContentElement], AxiosNewsletterResponse], image_paths: Optional[Dict[str, str]] = None, section_notices: Optional[Dict[str, str]] = None) -> str:
     """
     Generates HTML for the email newsletter using the template and newsletter content.
 
@@ -25,13 +27,13 @@ def generate_email_html(template: str, newsletter_content: Union[List[ContentEle
     """
     # Check if we're using the new Axios format
     if isinstance(newsletter_content, AxiosNewsletterResponse):
-        return _generate_axios_html(template, newsletter_content, image_paths)
+        return _generate_axios_html(template, newsletter_content, image_paths, section_notices)
     else:
         # Legacy format with ContentElement list
         return _generate_legacy_html(template, newsletter_content, image_paths)
 
 
-def _generate_axios_html(template: str, axios_response: AxiosNewsletterResponse, image_paths: Optional[Dict[str, str]] = None) -> str:
+def _generate_axios_html(template: str, axios_response: AxiosNewsletterResponse, image_paths: Optional[Dict[str, str]] = None, section_notices: Optional[Dict[str, str]] = None) -> str:
     """
     Generates HTML for Axios-style newsletter with clean, minimal formatting.
 
@@ -50,19 +52,30 @@ def _generate_axios_html(template: str, axios_response: AxiosNewsletterResponse,
         newsletter_html += f'<p class="intro-text">{axios_response.intro}</p>\n'
 
     # Generate HTML for each story
-    num_stories = len(axios_response.stories)
-    for i, story in enumerate(axios_response.stories):
+    entries = [(story, index, None) for index, story in enumerate(axios_response.stories)]
+    if section_notices:
+        entries += [(None, None, topic) for topic in section_notices]
+        order = {section['title']: index for index, section in enumerate(SECTIONS)}
+        entries.sort(key=lambda entry: order.get(entry[0].topic if entry[0] else entry[2], len(order)))
+    num_stories = len(entries)
+    for i, (story, image_index, empty_topic) in enumerate(entries):
         is_last = (i == num_stories - 1)
         if is_last:
             story_html = '<div class="story-section" style="border-bottom:none;padding-bottom:0;">\n'
         else:
             story_html = '<div class="story-section">\n'
 
+        if story is None:
+            story_html += f'  <h2 class="story-header"><span class="story-number">{i + 1}.</span> {escape(empty_topic)}</h2>\n'
+            story_html += f'  <div class="story-content"><p>{escape(section_notices[empty_topic])}</p></div>\n</div>\n'
+            newsletter_html += story_html
+            continue
+
         # Story header with consistent numbering: "1. Headline", "2. Headline", "3. Headline"
         story_html += f'  <h2 class="story-header"><span class="story-number">{i + 1}.</span> {story.headline}</h2>\n'
 
         # Add image right after headline (like Axios)
-        image_id = f"story_image_{i + 1}"
+        image_id = f"story_image_{image_index + 1}"
         if image_paths and image_id in image_paths:
             story_html += f'  <img class="story-image" src="cid:{image_id}" alt="{story.headline}">\n'
             if story.image_caption:

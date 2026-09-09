@@ -197,12 +197,17 @@ most recent completed scheduled window. Search recency and sitemap modification
 dates are discovery hints, never publication proof. Article metadata/RSS publication
 dates must agree and fall inside the window. Ambiguous dates are excluded.
 
-Up to three candidates per topic are considered in order. An unrestricted search
+Up to three candidates per topic are considered in order. If selection or the final
+review leaves a topic empty, one more shortlist is tried, excluding already attempted
+sources (at most six candidates per topic). Valid stories are retained during refill. An unrestricted search
 looks for the original announcement and prior coverage. A grounded novelty review
 must confirm the central announcement is new; a date, source ID and exact supporting
 quote are retained. Unknown dates, recycled events, failed verification and repeated
 events are excluded. An independent final review checks the newsletter against its
-evidence. Empty topics get an explicit quiet-news notice. API/writer failures abort
+evidence. Empty topics use the same numbered section headings as populated topics and say
+that no story passed selection, without claiming there was no news. Visible source
+attribution shows the announcement date only; exact timestamps and the collection
+window remain in the private audit, not the email. API/writer failures abort
 instead of sending an error disguised as a successful briefing.
 
 `python main.py --dry-run` saves a full HTML/image preview without sending.
@@ -212,7 +217,9 @@ only to that address. Only production cron uses `--send-to-everyone`.
 
 Private audit evidence and previews live in ignored `previews/`; delivered-event
 history lives in ignored `state/history.json`. Personal previews do not change group
-history. Each preview has an exclusive send-attempt marker. If delivery is uncertain,
+history. Personal previews can replay stories from the same edition; older editions
+and same-window freshness rejections remain excluded. Group runs exclude all
+previously delivered stories. Each preview has an exclusive send-attempt marker. If delivery is uncertain,
 inspect Sent before taking any further action; do not remove the marker and retry
 blindly. Tests: `python -m unittest discover -s tests -v`.
 
