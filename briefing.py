@@ -163,7 +163,7 @@ def compose_with_replacements(client, fallback, sources_by_topic, freshness, his
 
 def deliver(directory, everyone=False):
     payload = json.loads((directory / 'delivery.json').read_text())
-    newsletter = (directory / 'newsletter.html').read_text()
+    newsletter = (directory / 'newsletter.html').read_bytes().decode('utf-8')
     if hashlib.sha256(newsletter.encode()).hexdigest() != payload['html_sha256']:
         raise ValueError('Preview changed since validation; regenerate before sending')
     # Exclusive marker prevents blind retries after an uncertain SMTP outcome.

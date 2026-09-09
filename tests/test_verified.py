@@ -145,6 +145,18 @@ class ModelAndDelivery(unittest.TestCase):
             self.assertEqual(args[1], ['jay+list@example.com'])
             self.assertNotIn('group@example.com', args[2])
 
+    def test_preview_checksum_preserves_crlf_in_source_attribution(self):
+        from briefing import deliver
+        import hashlib
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp)
+            markup = b'<p>Source name\r\n &lt;source@example.com&gt;</p>'
+            (path / 'newsletter.html').write_bytes(markup)
+            (path / 'delivery.json').write_text(json.dumps({'html_sha256': hashlib.sha256(markup).hexdigest(), 'subject': 'Test', 'images': {}, 'selected': []}))
+            with patch('briefing.send_email', return_value=True) as send:
+                deliver(path)
+                self.assertEqual(send.call_args.args[0].encode(), markup)
+
     def test_duplicate_preview_send_blocked(self):
         from briefing import deliver
         import hashlib
