@@ -86,7 +86,7 @@ def deliver(directory, everyone=False):
         json.dump({'status': 'started', 'at': datetime.now(TIMEZONE).isoformat(), 'personal_to': f'{local}+list@{domain}', 'group': everyone}, f)
     os.chmod(marker, 0o600)
     subject = payload['subject'] if everyone else '[Preview] ' + payload['subject']
-    success = send_email(newsletter, subject, everyone, payload['images'])
+    success = send_email(newsletter, subject, everyone, payload['images'], cleanup_images=False)
     save_json(marker, {'status': 'smtp_accepted' if success else 'failed_or_uncertain_do_not_retry', 'at': datetime.now(TIMEZONE).isoformat(), 'group': everyone, 'subject': subject})
     if not success:
         raise RuntimeError('SMTP did not confirm full delivery; inspect Sent before retrying')

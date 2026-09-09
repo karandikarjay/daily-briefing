@@ -20,7 +20,7 @@ from config import (
 )
 
 def send_email(html_content: str, subject: str = None, send_to_everyone: bool = False, 
-               additional_images: Optional[Dict[str, str]] = None) -> bool:
+               additional_images: Optional[Dict[str, str]] = None, cleanup_images: bool = True) -> bool:
     """
     Sends an email with the daily briefing content.
     
@@ -111,8 +111,8 @@ def send_email(html_content: str, subject: str = None, send_to_everyone: bool = 
         
         logging.info(f"Email sent successfully to {len(all_recipients)} recipient(s)")
         
-        # Clean up temporary image files
-        if additional_images:
+        # Preserve archived preview images when requested by the verified pipeline.
+        if additional_images and cleanup_images:
             for image_path in additional_images.values():
                 try:
                     if os.path.exists(image_path):
