@@ -145,13 +145,13 @@ def run():
             if not selected:
                 raise ValueError('Writer returned no stories despite verified inputs')
             review = ask(client, fallback, FinalReview, '''
-Check the drafted newsletter against the supplied verified evidence. Approve only
+Check the drafted newsletter against the supplied verified evidence and topic requirements. Approve only
 if every factual claim is supported, each headline/What describes the verified new
 announcement, and no historical fact is recast as current. 'Why it matters' may offer
 clearly framed analysis, but must not invent facts or current comparisons. Ignore
 illustration descriptions. Check source IDs, quoted numbers, dates, and entities.
 Reject substantive unsupported claims. Return a short reason.
-''', {'newsletter': newsletter.model_dump(), 'verified_evidence': selected})
+''', {'newsletter': newsletter.model_dump(), 'verified_evidence': selected, 'topic_requirements': {s['title']: s['prompt'] for s in SECTIONS}})
             save_json(directory / 'final-review.json', review.model_dump())
             if not review.approved:
                 raise ValueError('Final factual review rejected newsletter: ' + review.reason)

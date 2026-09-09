@@ -59,6 +59,13 @@ class Dates(unittest.TestCase):
     def test_modified_alone_never_counts(self):
         self.assertEqual(publication_dates('<meta property="article:modified_time" content="2026-09-07T12:00:00Z">'), [])
 
+    def test_html_email_is_normalized_before_quote_checks(self):
+        from content.freshness import quote_in
+        item = {'subject': 'Round 3', 'datetime': '2026-09-08T02:00:00Z', 'body': "<p>Applications for <b>Round 3</b> of <b>MFA&#39;s project</b> are now open!</p>"}
+        source = Freshness(START, END).inspect(item)
+        self.assertTrue(source['date_verified'])
+        self.assertTrue(quote_in("Applications for Round 3 of MFA's project are now open!", source['body']))
+
     def test_canonical_url(self):
         self.assertEqual(canonical_url('https://example.com/news/?utm_source=x#fragment'), 'https://example.com/news')
 
@@ -85,10 +92,14 @@ class Verification(unittest.TestCase):
     def setUp(self):
         self.candidate = Candidate(source_id='a', title='New launch', description='A product launches', evidence_quote='The company launched its new product today.', event_key='company-product-2026', verification_query='company product launch announcement')
         self.proof = {'a': {'date_verified': True, 'published_at': '2026-09-07T12:00:00Z', 'article': self.candidate.evidence_quote}}
-        self.verdict = Verdict(candidate_source_id='a', accepted=True, evidence_source_id='a', evidence_quote=self.candidate.evidence_quote, announcement_date='2026-09-07', event_key='company-product-2026', reason='First launch confirmed')
+        self.verdict = Verdict(candidate_source_id='a', accepted=True, topic_matches=True, evidence_source_id='a', evidence_quote=self.candidate.evidence_quote, announcement_date='2026-09-07', event_key='company-product-2026', reason='First launch confirmed')
 
     def test_valid_evidence(self):
         self.assertTrue(validate_verdict(self.verdict, self.candidate, self.proof, START, END))
+
+    def test_wrong_topic_is_rejected(self):
+        self.verdict.topic_matches = False
+        self.assertFalse(validate_verdict(self.verdict, self.candidate, self.proof, START, END))
 
     def test_fabricated_quote_rejected(self):
         self.verdict.evidence_quote = 'The company raised a billion dollars today.'
@@ -166,7 +177,7 @@ class ModelAndDelivery(unittest.TestCase):
         from config import SECTIONS
         candidate = Candidate(source_id='mail', title='New study', description='New results', evidence_quote='We published our new effectiveness study today.', event_key='new-study-2026', verification_query='private unreleased data')
         source = {'source_id': 'mail', 'source_type': 'email', 'date_verified': True, 'published_at': '2026-09-08T02:00:00Z', 'datetime': '2026-09-08T02:00:00Z', 'body': candidate.evidence_quote, 'date_evidence': [], 'subject': 'New study', 'source_name': 'FAST'}
-        verdict = Verdict(candidate_source_id='mail', accepted=True, evidence_source_id='mail', evidence_quote=candidate.evidence_quote, announcement_date='2026-09-07', event_key='new-study-2026', reason='Firsthand new report')
+        verdict = Verdict(candidate_source_id='mail', accepted=True, topic_matches=True, evidence_source_id='mail', evidence_quote=candidate.evidence_quote, announcement_date='2026-09-07', event_key='new-study-2026', reason='Firsthand new report')
         with patch('content.verification.ask', side_effect=[Candidates(news_items=[candidate]), Verdicts(verdicts=[verdict])]), patch('tavily.TavilyClient') as search:
             selected, audit = select_verified(MagicMock(), MagicMock(), SECTIONS[1], [source], Freshness(START, END), [])
             search.assert_not_called()

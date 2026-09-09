@@ -129,6 +129,9 @@ class Freshness:
         record['date_evidence'] = []
         if not record.get('url'):
             record['source_type'] = 'email'
+            body = record.get('body', '')
+            if re.search(r'<[A-Za-z!/][^>]*>', body):
+                record['body'] = BeautifulSoup(body, 'html.parser').get_text(' ', strip=True)
             record['received_at'] = record.get('datetime')
             # This only validates receipt; event verification still checks novelty.
             record['date_evidence'] = [{'value': record.get('datetime'), 'kind': 'email.received'}]

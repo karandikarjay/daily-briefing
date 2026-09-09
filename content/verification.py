@@ -26,6 +26,7 @@ class Candidates(BaseModel):
 class Verdict(BaseModel):
     candidate_source_id: str
     accepted: bool
+    topic_matches: bool
     evidence_source_id: str
     evidence_quote: str
     announcement_date: str
@@ -54,7 +55,7 @@ def ask(client, fallback, model, prompt, data):
 
 
 def validate_verdict(verdict, candidate, evidence, start, end):
-    if not verdict.accepted or verdict.candidate_source_id != candidate.source_id:
+    if not verdict.accepted or not verdict.topic_matches or verdict.candidate_source_id != candidate.source_id:
         return False
     source = evidence.get(verdict.evidence_source_id)
     if not source or not source.get('date_verified') or not in_window(source.get('published_at'), start, end):
@@ -120,6 +121,10 @@ company is allowed. An email receipt date proves receipt, not event novelty.
         verdicts = ask(client, fallback, Verdicts, '''
 You are the freshness editor. Assess ONLY the supplied candidate. Return one verdict.
 Does its CENTRAL news claim describe a genuinely new announcement within the window?
+Set topic_matches=true ONLY if it satisfies the supplied topic_requirements.
+Vegan Movement means farmed-animal advocacy, policy, or intervention effectiveness:
+alternative-protein company hiring, product launches, and sales are NOT in that topic.
+A FAST email's presence does not establish that its contents fit the advocacy topic.
 Independently compare the source with unrestricted search results for the original
 announcement or earlier coverage. A fresh webpage about an old funding round is OLD.
 If older evidence describes the same event, reject. Reject missing/ambiguous novelty,
@@ -135,7 +140,7 @@ the date this development was first announced (YYYY-MM-DD), not the scrape date.
 Use a stable event_key including entity, event/round/version and announcement year.
 Reject repeats in history, even if written with different words or a different URL.
 When in doubt, accepted=false. Explain why. Never resolve conflicting evidence by guessing.
-''', {'window_start': freshness.start.isoformat(), 'window_end_exclusive': freshness.end.isoformat(), 'candidate': candidate.model_dump(), 'source': source, 'original_announcement_search': discovered, 'previously_covered': history})
+''', {'window_start': freshness.start.isoformat(), 'window_end_exclusive': freshness.end.isoformat(), 'candidate': candidate.model_dump(), 'topic_requirements': section['prompt'], 'source': source, 'original_announcement_search': discovered, 'previously_covered': history})
         verdict = verdicts.verdicts[0] if len(verdicts.verdicts) == 1 else None
         ok = bool(verdict and validate_verdict(verdict, candidate, evidence, freshness.start, freshness.end))
         if verdict and any(verdict.event_key.casefold() == x.get('event_key', '').casefold() for x in history):
