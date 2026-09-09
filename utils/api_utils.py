@@ -19,7 +19,7 @@ from config import (
     AI_MODEL, MAX_RETRIES, INITIAL_RETRY_DELAY, MAX_RETRY_DELAY,
     MAX_TOKENS_PER_REQUEST, TIMEZONE, IMAGE_MODEL, IMAGE_SIZE,
     IMAGE_QUALITY, IMAGE_OUTPUT_FORMAT, MAX_OUTPUT_TOKENS,
-    TEXT_FALLBACK_MODEL
+    TEXT_FALLBACK_MODEL, CLAUDE_EFFORT
 )
 
 def num_tokens_from_string(string: str, model: str = "claude-opus-4-5-20251101") -> int:
@@ -69,6 +69,8 @@ def call_api_with_backoff(
             return response
 
         except Exception as e:
+            if getattr(e, 'status_code', None) in (400, 401, 403, 404, 422):
+                raise  # Invalid requests/auth/billing failures cannot recover with backoff.
             retry_count += 1
 
             # Check if it's a rate limit error
@@ -277,7 +279,8 @@ def call_claude_parse_with_backoff(
             model=model,
             max_tokens=max_tokens,
             system=system_prompt,
-            messages=claude_messages
+            messages=claude_messages,
+            output_config={"effort": CLAUDE_EFFORT},
         )
 
     response = call_api_with_backoff(
@@ -286,7 +289,12 @@ def call_claude_parse_with_backoff(
     )
 
     # Extract the text content from Claude's response
-    response_text = response.content[0].text
+    if response.stop_reason == "max_tokens":
+        raise ValueError("Claude response exhausted its thinking/output token budget")
+    response_text = "".join(block.text for block in response.content if block.type == "text")
+    if not response_text.strip():
+        raise ValueError("Claude returned no text blocks")
+    logging.info("LLM usage model=%s input=%s output=%s", model, response.usage.input_tokens, response.usage.output_tokens)
 
     # Clean up the response - remove markdown code blocks if present
     if response_text.startswith("```"):
@@ -326,7 +334,10 @@ def call_claude_parse_with_backoff(
 
     return ParsedResponse(parsed_model)
 
-# Alias for backward compatibility
+# Keep the same OpenAI fallback; suppress repeated permanent provider failures per run.
+_claude_unavailable = False
+
+
 def call_openai_parse_with_backoff(
     client,
     messages: List[Dict[str, str]],
@@ -335,38 +346,35 @@ def call_openai_parse_with_backoff(
     fallback_client: OpenAI = None,
     fallback_model: str = TEXT_FALLBACK_MODEL
 ) -> Any:
-    """
-    Routes structured text generation to Claude, with an OpenAI fallback.
-    Maintains backward compatibility with existing code that expects OpenAI-style interface.
-    """
-    try:
-        return call_claude_parse_with_backoff(
-            client=client,
-            messages=messages,
-            response_model=response_model,
-            model=model
-        )
-    except Exception:
-        if fallback_client is None:
-            raise
-
-        logging.exception(
-            "Claude structured generation failed after retries; "
-            f"falling back to OpenAI model {fallback_model}"
-        )
-
-        def api_call():
-            return fallback_client.beta.chat.completions.parse(
-                model=fallback_model,
-                messages=messages,
-                response_format=response_model
+    global _claude_unavailable
+    if not _claude_unavailable:
+        try:
+            return call_claude_parse_with_backoff(
+                client=client, messages=messages, response_model=response_model, model=model
             )
+        except Exception as exc:
+            if fallback_client is None:
+                raise
+            status = getattr(exc, 'status_code', None)
+            if status in (401, 403, 404) or (status == 400 and 'credit balance' in str(exc).lower()):
+                _claude_unavailable = True
+            logging.warning("Claude generation failed (%s); using OpenAI fallback %s", type(exc).__name__, fallback_model)
+    if fallback_client is None:
+        raise RuntimeError('Claude unavailable and no fallback configured')
 
-        return call_api_with_backoff(
-            api_call=api_call,
-            resource_type="OpenAI fallback completions"
+    def api_call():
+        return fallback_client.beta.chat.completions.parse(
+            model=fallback_model, messages=messages, response_format=response_model
         )
+    response = call_api_with_backoff(api_call=api_call, resource_type="OpenAI fallback completions")
+    usage = getattr(response, 'usage', None)
+    if usage:
+        logging.info("LLM usage model=%s input=%s output=%s", fallback_model, usage.prompt_tokens, usage.completion_tokens)
+    return response
 
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
 def get_content_collection_timeframe():
     """
     Determines the appropriate timeframe for content collection based on the current day.
@@ -380,8 +388,13 @@ def get_content_collection_timeframe():
     # Set end time to 6am today
     end_datetime = now.replace(hour=6, minute=0, second=0, microsecond=0)
 
-    # Determine start date based on current day of the week
-    weekday = now.weekday()  # 0=Monday, 6=Sunday
+    if now < end_datetime:
+        end_datetime -= timedelta(days=1)
+    while end_datetime.weekday() in (5, 6):
+        end_datetime -= timedelta(days=1)
+
+    # Determine start date based on the completed scheduled window
+    weekday = end_datetime.weekday()  # 0=Monday, 6=Sunday
 
     # If today is Saturday (5), Sunday (6), or Monday (0)
     if weekday in [0, 5, 6]:

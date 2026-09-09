@@ -26,8 +26,9 @@ GOOGLE_PASSWORD = os.getenv("GOOGLE_PASSWORD")
 recipient_emails_str = os.getenv("RECIPIENT_EMAILS", "")
 RECIPIENT_EMAILS = [email.strip() for email in recipient_emails_str.split(",")] if recipient_emails_str else []
 
-# Define AI model to use (Claude Opus 4.5)
-AI_MODEL = "claude-opus-4-8"
+# Default text model; use explicit medium effort with adaptive thinking.
+AI_MODEL = os.getenv("AI_MODEL", "claude-opus-5")
+CLAUDE_EFFORT = "medium"
 # Used when Anthropic is temporarily unavailable (for example, HTTP 529).
 TEXT_FALLBACK_MODEL = "gpt-5.6-sol"
 
@@ -51,7 +52,7 @@ INITIAL_RETRY_DELAY = 1  # seconds
 MAX_RETRY_DELAY = 60  # seconds
 MAX_TOKENS_PER_REQUEST = 100000  # Claude supports much larger context
 TOKEN_BUFFER = 1000  # Buffer to account for response tokens
-MAX_OUTPUT_TOKENS = 8192  # Maximum output tokens for Claude
+MAX_OUTPUT_TOKENS = 16000  # Maximum output tokens for Claude
 
 # Email template path
 TEMPLATE_PATH = os.path.join(SCRIPT_DIR, "template.html")

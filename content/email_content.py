@@ -32,7 +32,7 @@ def get_fast_email_content() -> List[Dict[str, str]]:
         mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
         mail.login(GOOGLE_USERNAME, GOOGLE_PASSWORD)
         # Search All Mail to find emails regardless of folder/label (including auto-archived)
-        mail.select('"[Gmail]/All Mail"')
+        mail.select('"[Gmail]/All Mail"', readonly=True)
 
         # Convert the start and end dates to the format required by IMAP (DD-MMM-YYYY)
         start_date_str = start_time.strftime("%d-%b-%Y")
@@ -73,7 +73,7 @@ def get_fast_email_content() -> List[Dict[str, str]]:
 
         # Process each email that matches our criteria
         for email_id in email_ids:
-            status, msg_data = mail.fetch(email_id, "(RFC822)")
+            status, msg_data = mail.fetch(email_id, "(BODY.PEEK[])")
             for response_part in msg_data:
                 if isinstance(response_part, tuple):
                     msg = email.message_from_bytes(response_part[1])
@@ -121,7 +121,9 @@ def get_fast_email_content() -> List[Dict[str, str]]:
                                         "subject": subject, 
                                         "body": body,
                                         "datetime": date_tuple.isoformat(),
-                                        "source_name": "FAST Email List"
+                                        "source_name": "FAST Email List",
+                                        "email_sender": msg.get("From", ""),
+                                        "message_id": msg.get("Message-ID", "")
                                     })
                         else:
                             body = msg.get_payload(decode=True).decode()
@@ -129,7 +131,9 @@ def get_fast_email_content() -> List[Dict[str, str]]:
                                 "subject": subject, 
                                 "body": body,
                                 "datetime": date_tuple.isoformat(),
-                                "source_name": "FAST Email List"
+                                "source_name": "FAST Email List",
+                                        "email_sender": msg.get("From", ""),
+                                        "message_id": msg.get("Message-ID", "")
                             })
 
         mail.logout()

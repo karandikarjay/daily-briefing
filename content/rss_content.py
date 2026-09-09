@@ -18,6 +18,7 @@ from utils.html_utils import clean_html_content
 from utils.api_utils import num_tokens_from_string, get_content_collection_timeframe
 from config import HEADERS, VEGCONOMIST_RSS_URL, TIMEZONE
 import time
+import calendar
 
 def fetch_and_parse_rss(rss_url: str) -> Optional[feedparser.FeedParserDict]:
     """
@@ -30,7 +31,9 @@ def fetch_and_parse_rss(rss_url: str) -> Optional[feedparser.FeedParserDict]:
         Parsed feed or None if retrieval fails
     """
     try:
-        feed = feedparser.parse(rss_url)
+        response = requests.get(rss_url, headers=HEADERS, timeout=(8, 20))
+        response.raise_for_status()
+        feed = feedparser.parse(response.content)
         if not feed.entries:
             logging.warning(f"No entries found in RSS feed: {rss_url}")
             return None
@@ -84,7 +87,7 @@ def get_rundown_content() -> List[Dict[str, str]]:
     
     def extract_datetime(entry):
         if hasattr(entry, 'published_parsed') and entry.published_parsed:
-            pub_date = datetime.fromtimestamp(time.mktime(entry.published_parsed))
+            pub_date = datetime.fromtimestamp(calendar.timegm(entry.published_parsed), tz=timezone.utc)
             pub_date = pub_date.replace(tzinfo=timezone.utc)
             return pub_date.astimezone(TIMEZONE)
         return None
@@ -183,7 +186,7 @@ def get_vegconomist_content() -> List[Dict[str, str]]:
     
     def extract_datetime(entry):
         if hasattr(entry, 'published_parsed') and entry.published_parsed:
-            pub_date = datetime.fromtimestamp(time.mktime(entry.published_parsed))
+            pub_date = datetime.fromtimestamp(calendar.timegm(entry.published_parsed), tz=timezone.utc)
             pub_date = pub_date.replace(tzinfo=timezone.utc)
             return pub_date.astimezone(TIMEZONE)
         return None
@@ -202,7 +205,8 @@ def get_vegconomist_content() -> List[Dict[str, str]]:
             "title": entry.title,
             "article": article_text,
             "datetime": extract_datetime(entry),
-            "source_name": "Vegconomist"
+            "source_name": "Vegconomist",
+            "date_kind": "rss.published"
         }
     
     return get_articles_within_timeframe(

@@ -1,6 +1,6 @@
 # Future Appetite - Daily Briefing Project
 
-A Python script that gathers content from various sources (RSS feeds, sitemaps, emails), processes it with Claude Opus 4.5, generates photorealistic images with OpenAI's gpt-image-1.5, and sends a personalized Axios-style daily briefing email.
+A Python script that gathers content from various sources (RSS feeds, sitemaps, emails), processes it with Claude Opus 5 (medium effort; GPT-5.6 Sol fallback), generates photorealistic images with OpenAI's gpt-image-1.5, and sends a personalized Axios-style daily briefing email.
 
 ## Project Structure
 
@@ -14,7 +14,7 @@ A Python script that gathers content from various sources (RSS feeds, sitemaps, 
 
 ## AI Stack
 
-- **Text Generation**: Claude Opus 4.5 (Anthropic) - extracts news items and generates the newsletter
+- **Text Generation**: Claude Opus 5 (medium effort; GPT-5.6 Sol fallback) (Anthropic) - extracts news items and generates the newsletter
 - **Image Generation**: gpt-image-1.5 (OpenAI) - creates photorealistic images for each story
 
 ## Running the Script
@@ -32,7 +32,7 @@ python main.py
 ## Environment
 
 Requires a `.env` file with:
-- `ANTHROPIC_API_KEY` - For Claude Opus 4.5 text generation
+- `ANTHROPIC_API_KEY` - For Claude Opus 5 (medium effort; GPT-5.6 Sol fallback) text generation
 - `OPENAI_API_KEY` - For gpt-image-1.5 image generation
 - `GOOGLE_USERNAME` - Gmail address for sending
 - `GOOGLE_PASSWORD` - Gmail app password
@@ -41,7 +41,7 @@ Requires a `.env` file with:
 ## Newsletter Format
 
 The newsletter follows Axios-style "Smart Brevity" principles:
-- Top 3 stories selected from all content sources
+- Up to 3 verified stories selected from all content sources
 - Each story has: headline, "What", "Why it matters", "Go deeper" sections
 - Photorealistic AI-generated image for each story
 - Financial charts section at the bottom

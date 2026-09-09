@@ -8,6 +8,7 @@ based on the section title.
 import logging
 import json
 from typing import List, Dict, Any
+from datetime import datetime, timezone
 from .tavily_content import get_tavily_content
 from .email_content import get_fast_email_content
 from .sitemap_content import get_gq_content
@@ -34,14 +35,14 @@ def limit_content_by_tokens(content_list: List[Dict[str, Any]], max_tokens: int,
     content = content_list.copy()
     
     # Sort content by datetime (oldest first)
-    content.sort(key=lambda x: x.get("datetime") or "")
+    content.sort(key=lambda x: datetime.fromisoformat(x["datetime"]).astimezone(timezone.utc) if x.get("datetime") else datetime.min.replace(tzinfo=timezone.utc))
     
     # Calculate total tokens based on the JSON string that will be used in the prompt
     total_tokens = num_tokens_from_string(json.dumps(content))
     logging.info(f"{section_title}: Initial collection has {len(content)} items with {total_tokens} tokens")
     
     # Remove oldest items until we're under the token limit
-    while total_tokens > max_tokens and len(content) > 1:
+    while total_tokens > max_tokens and content:
         # Remove the oldest item (first in the list since we sorted by datetime)
         removed_item = content.pop(0)
         item_type = "email" if "subject" in removed_item else "article"
@@ -76,10 +77,6 @@ def get_content(title: str, max_tokens: int = 20000) -> List[Dict[str, Any]]:
         # FAST emails are the primary source — reserve token budget for them
         fast_content = get_fast_email_content()
         tavily_content = get_tavily_content("Vegan Movement")
-        fast_tokens = num_tokens_from_string(json.dumps(fast_content)) if fast_content else 0
-        tavily_budget = max(0, max_tokens - fast_tokens)
-        if tavily_content:
-            tavily_content = limit_content_by_tokens(tavily_content, tavily_budget, f"{title} (Tavily)")
         all_content.extend(fast_content)
         all_content.extend(tavily_content)
         return all_content
@@ -89,8 +86,5 @@ def get_content(title: str, max_tokens: int = 20000) -> List[Dict[str, Any]]:
         logging.warning(f"No content retrieval function defined for title: {title}")
         return all_content
 
-    # Apply token limit to the combined content
-    if all_content:
-        all_content = limit_content_by_tokens(all_content, max_tokens, title)
-
+    # The verified orchestrator applies token limits after publication checks.
     return all_content

@@ -14,4 +14,11 @@ __pycache__/
 
 # IDE
 .vscode/
-.idea/ 
+.idea/
+# Runtime and private verification evidence
+venv/
+state/
+previews/
+.pytest_cache/
+
+/venv

@@ -36,6 +36,8 @@ class StoryBullet(BaseModel):
 
 class NewsStory(BaseModel):
     """Model for a single news story in Axios style."""
+    source_id: str = ""
+    topic: str = ""
     headline: str  # Short, punchy headline for the story
     bullets: List[StoryBullet]  # List of bullet points (what, why, source)
     image_description: Optional[str] = None  # Description for AI image generation
@@ -46,7 +48,7 @@ class AxiosNewsletterResponse(BaseModel):
     """Response model for Axios-style newsletter with top 3 stories."""
     subject: str  # Email subject line highlighting the top story
     intro: str  # Brief intro paragraph
-    stories: List[NewsStory]  # Exactly 3 top stories
+    stories: List[NewsStory]  # Up to 3 verified stories
     closing: Optional[str] = None  # Optional closing remarks
 
 

@@ -6,7 +6,7 @@ across configured topic areas.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List
 from urllib.parse import urlparse
 
@@ -75,8 +75,10 @@ def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
                 topic="news",
                 search_depth="advanced",
                 include_raw_content=True,
-                days=days,
+                start_date=start_time.date().isoformat(),
+                end_date=(end_time.date() + timedelta(days=1)).isoformat(),
                 max_results=5,
+                timeout=30,
             )
 
             for item in response.get("results", []):
@@ -109,7 +111,7 @@ def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
                 if not dt:
                     logging.warning(
                         f"Tavily [{section_title}]: no published date for '{item.get('title', '')[:60]}' "
-                        f"— including based on Tavily recency filter (days={days})"
+                        f"— discovery only; independent publication verification required"
                     )
 
                 dt_str = dt.isoformat() if dt else None
@@ -120,6 +122,7 @@ def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
                     "article": raw_content,
                     "datetime": dt_str,
                     "source_name": _extract_domain(url),
+                    "date_kind": "search.discovery",
                 })
 
         except Exception:

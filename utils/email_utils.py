@@ -10,6 +10,7 @@ import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
+from email.utils import make_msgid, formatdate
 from typing import List, Optional, Dict
 from datetime import datetime
 from config import (
@@ -55,6 +56,8 @@ def send_email(html_content: str, subject: str = None, send_to_everyone: bool = 
         msg['Subject'] = email_subject
         msg['From'] = GOOGLE_USERNAME
         msg['To'] = to_address
+        msg['Message-ID'] = make_msgid(domain=domain)
+        msg['Date'] = formatdate(localtime=True)
         
         # Attach HTML content
         msg_alternative = MIMEMultipart('alternative')
@@ -89,14 +92,22 @@ def send_email(html_content: str, subject: str = None, send_to_everyone: bool = 
                     logging.warning(f"DALL-E image file not found: {image_path}")
         
         # Connect to SMTP server
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
         server.starttls()
         server.login(GOOGLE_USERNAME, GOOGLE_PASSWORD)
         
         # Send email - include both To and Bcc recipients in the sendmail call
         all_recipients = recipients + bcc_recipients
-        server.sendmail(GOOGLE_USERNAME, all_recipients, msg.as_string())
-        server.quit()
+        logging.info("SMTP send attempt message_id=%s personal_to=%s group_bcc_count=%s", msg['Message-ID'], to_address, len(bcc_recipients))
+        refused = server.sendmail(GOOGLE_USERNAME, all_recipients, msg.as_string())
+        if refused:
+            logging.error("SMTP refused %s recipients; do not blindly resend", len(refused))
+            return False
+        logging.info("SMTP accepted message_id=%s recipient_count=%s", msg['Message-ID'], len(all_recipients))
+        try:
+            server.quit()
+        except Exception:
+            logging.warning("SMTP quit failed after confirmed acceptance; message was accepted")
         
         logging.info(f"Email sent successfully to {len(all_recipients)} recipient(s)")
         

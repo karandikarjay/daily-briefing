@@ -25,7 +25,7 @@ def get_gq_sitemap_urls(sitemap_index_url: str) -> List[str]:
         List[str]: A list of sitemap URLs
     """
     try:
-        response = requests.get(sitemap_index_url, headers=HEADERS)
+        response = requests.get(sitemap_index_url, headers=HEADERS, timeout=(8, 20))
         response.raise_for_status()
         root = ET.fromstring(response.content)
         ns = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -63,7 +63,7 @@ def get_latest_articles(sitemap_urls: List[str], source_name: str) -> List[tuple
     # Process each sitemap and collect articles within the time window
     for sitemap_url in sitemap_urls:
         try:
-            response = requests.get(sitemap_url, headers=HEADERS)
+            response = requests.get(sitemap_url, headers=HEADERS, timeout=(8, 20))
             response.raise_for_status()
             root = ET.fromstring(response.content)
             for url_elem in root.findall("ns:url", ns):
@@ -101,7 +101,7 @@ def get_gq_article_content(urls: List[str]) -> List[Dict[str, str]]:
     articles = []
     for url, lastmod_dt in urls:
         try:
-            response = requests.get(url, headers=HEADERS)
+            response = requests.get(url, headers=HEADERS, timeout=(8, 20))
             if response.status_code != 200:
                 logging.error(f"Failed to retrieve {url}: status code {response.status_code}")
                 continue
@@ -116,6 +116,8 @@ def get_gq_article_content(urls: List[str]) -> List[Dict[str, str]]:
                 "title": title,
                 "article": article_text,
                 "datetime": lastmod_dt.isoformat(),
+                "modified_at": lastmod_dt.isoformat(),
+                "date_kind": "sitemap.modified",
                 "source_name": "Green Queen"
             })
         except Exception as e:

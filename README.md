@@ -17,7 +17,7 @@ Future Appetite collects content from multiple sources, processes it using AI to
   - Website sitemaps (Green Queen)
   - Email lists (FAST)
 
-- **AI-Powered Content Processing**: Uses Claude Opus 4.5 (Anthropic) to:
+- **AI-Powered Content Processing**: Uses Claude Opus 5 (Anthropic) to:
   - Extract the most important news items from each source
   - Select the top 3 stories across all topics
   - Generate an Axios-style newsletter with Smart Brevity principles
@@ -34,7 +34,7 @@ Future Appetite collects content from multiple sources, processes it using AI to
 
 - **Email Delivery**: Sends a formatted HTML email with:
   - Clean, minimal Axios-style design
-  - Top 3 stories with photorealistic AI-generated images
+  - Up to 3 verified stories with photorealistic AI-generated images
   - Embedded financial charts
   - Links to original sources
   - Option to send to a single recipient or a distribution list
@@ -71,7 +71,7 @@ daily-briefing/
 ## Requirements
 
 - Python 3.9+
-- Anthropic API key (for Claude Opus 4.5 text generation)
+- Anthropic API key (for Claude Opus 5 text generation)
 - OpenAI API key (for gpt-image-1.5 image generation)
 - Gmail account (for sending emails)
 - Required Python packages (see requirements.txt)
@@ -133,9 +133,9 @@ The application is configured through the `config.py` file, which includes:
 
 1. **Content Collection**: The application retrieves content from various sources defined in the configuration.
 
-2. **Content Processing**: For each section, the collected content is processed using Claude Opus 4.5 to extract the most important news items.
+2. **Content Processing**: For each section, the collected content is processed using Claude Opus 5 to extract the most important news items.
 
-3. **Newsletter Generation**: Claude selects the top 3 stories and generates an Axios-style newsletter with Smart Brevity principles.
+3. **Newsletter Generation**: Claude selects up to 3 verified stories and generates an Axios-style newsletter with Smart Brevity principles.
 
 4. **Image Generation**: OpenAI's gpt-image-1.5 generates photorealistic images for each story.
 
@@ -181,7 +181,41 @@ To add a new section to the briefing:
 
 ## Acknowledgements
 
-- Anthropic for providing Claude Opus 4.5
+- Anthropic for providing Claude Opus 5
 - OpenAI for providing gpt-image-1.5 image generation
 - yfinance for financial data
 - All the content sources that make this briefing possible
+
+## Verified news pipeline
+
+Text defaults to `claude-opus-5`, adaptive thinking with medium effort. The existing
+`gpt-5.6-sol` fallback is retained. Model usage is logged for cost measurement.
+
+All collectors share one frozen, half-open Eastern-time window: 06:00 yesterday
+to 06:00 today, with Monday covering Friday onward. Early/manual runs use the
+most recent completed scheduled window. Search recency and sitemap modification
+dates are discovery hints, never publication proof. Article metadata/RSS publication
+dates must agree and fall inside the window. Ambiguous dates are excluded.
+
+Up to three candidates per topic are considered in order. An unrestricted search
+looks for the original announcement and prior coverage. A grounded novelty review
+must confirm the central announcement is new; a date, source ID and exact supporting
+quote are retained. Unknown dates, recycled events, failed verification and repeated
+events are excluded. An independent final review checks the newsletter against its
+evidence. Empty topics get an explicit quiet-news notice. API/writer failures abort
+instead of sending an error disguised as a successful briefing.
+
+`python main.py --dry-run` saves a full HTML/image preview without sending.
+`python main.py --send-preview /absolute/path/to/previews/RUN` sends that validated
+preview only to the configured sender's +list address. `python main.py` also sends
+only to that address. Only production cron uses `--send-to-everyone`.
+
+Private audit evidence and previews live in ignored `previews/`; delivered-event
+history lives in ignored `state/history.json`. Personal previews do not change group
+history. Each preview has an exclusive send-attempt marker. If delivery is uncertain,
+inspect Sent before taking any further action; do not remove the marker and retry
+blindly. Tests: `python -m unittest discover -s tests -v`.
+
+Publication metadata can be wrong, and semantic verification is probabilistic.
+The deliberate tradeoff is to omit uncertain stories, sometimes producing a shorter
+edition, rather than treat discovery dates or a model's unsupported assertion as proof.
