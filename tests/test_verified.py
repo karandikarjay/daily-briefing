@@ -193,6 +193,16 @@ class ModelAndDelivery(unittest.TestCase):
             self.assertEqual(claude.call_count, 1)
             self.assertEqual(fallback.beta.chat.completions.parse.call_count, 2)
 
+    def test_failed_verification_is_preserved_for_same_window(self):
+        import briefing
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch('briefing.STATE', Path(tmp)), patch('briefing.get_content_collection_timeframe', return_value=(START, END)):
+                briefing.remember_rejections([{'candidate': {'source_id': 'old-launch', 'title': 'Later coverage'}, 'verdict': {'accepted': False, 'event_key': 'old-launch', 'reason': 'Original announcement preceded the window'}}], START, END)
+                self.assertEqual(briefing.load_history(), [])
+                self.assertEqual(briefing.load_history(include_rejections=True)[0]['source_id'], 'old-launch')
+            with patch('briefing.STATE', Path(tmp)), patch('briefing.get_content_collection_timeframe', return_value=(END, END)):
+                self.assertEqual(briefing.load_history(include_rejections=True), [])
+
 
 if __name__ == '__main__':
     unittest.main()

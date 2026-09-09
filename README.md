@@ -219,3 +219,6 @@ blindly. Tests: `python -m unittest discover -s tests -v`.
 Publication metadata can be wrong, and semantic verification is probabilistic.
 The deliberate tradeoff is to omit uncertain stories, sometimes producing a shorter
 edition, rather than treat discovery dates or a model's unsupported assertion as proof.
+
+Failed semantic verification is persisted in state/excluded-events.json for the
+same collection window. Retries cannot silently reintroduce rejected source IDs.

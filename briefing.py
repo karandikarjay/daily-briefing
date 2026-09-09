@@ -26,12 +26,31 @@ ROOT = Path(__file__).resolve().parent
 STATE = Path(os.environ.get('BRIEFING_STATE_DIR', str(ROOT / 'state')))
 
 
-def load_history():
+def load_history(include_rejections=False):
     path = STATE / 'history.json'
-    if not path.exists():
-        return []
-    history = json.loads(path.read_text())
-    return history[-1000:]
+    history = json.loads(path.read_text())[-1000:] if path.exists() else []
+    if include_rejections and (STATE / 'excluded-events.json').exists():
+        start, end = get_content_collection_timeframe()
+        rejected = json.loads((STATE / 'excluded-events.json').read_text())
+        history += [r for r in rejected if r['window_start'] == start.isoformat() and r['window_end'] == end.isoformat()]
+    return history
+
+
+def remember_rejections(decisions, start, end):
+    path = STATE / 'excluded-events.json'
+    rejected = json.loads(path.read_text()) if path.exists() else []
+    for decision in decisions:
+        verdict = decision.get('verdict')
+        if verdict and not verdict['accepted']:
+            candidate = decision['candidate']
+            rejected.append({
+                'source_id': candidate['source_id'], 'title': candidate['title'],
+                'event_key': verdict.get('event_key', ''), 'reason': verdict['reason'],
+                'window_start': start.isoformat(), 'window_end': end.isoformat(),
+                'status': 'previously_rejected_do_not_reintroduce_in_this_window',
+            })
+    unique = {(r['source_id'], r['window_start'], r['window_end']): r for r in rejected}
+    save_json(path, list(unique.values())[-1000:])
 
 
 def save_json(path, value):
@@ -119,7 +138,7 @@ def run():
         client = Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0)
         fallback = OpenAI(api_key=OPENAI_API_KEY, max_retries=0)
         logging.info('Verified briefing window [%s, %s); primary=%s fallback=%s', start, end, AI_MODEL, TEXT_FALLBACK_MODEL)
-        history = load_history()
+        history = load_history(include_rejections=True)
         all_news, decisions = [], []
         for section in SECTIONS:
             sources = freshness.filter(get_content(section['title']))
@@ -135,6 +154,7 @@ def run():
             verified, audit = select_verified(client, fallback, section, sources, freshness, history)
             all_news.extend(verified)
             decisions.extend(audit)
+        remember_rejections(decisions, start, end)
         stamp = datetime.now(TIMEZONE).strftime('%Y%m%d-%H%M%S')
         directory = ROOT / 'previews' / stamp
         directory.mkdir(parents=True, mode=0o700)
