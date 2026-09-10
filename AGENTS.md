@@ -25,7 +25,7 @@ A Python application that gathers RSS feeds, sitemaps, FAST emails, and Tavily w
 
 ## Running and Testing
 
-The local checkout is `/Users/jay/Projects/daily-briefing`; the server checkout is `/root/daily-briefing` on `root@147.79.74.69`. Use the Python environment provisioned for that checkout; do not assume a local `venv/` already exists. Dependencies are listed in `requirements.txt`.
+The local checkout is `/Users/jay/Projects/daily-briefing`; the production checkout is `~/daily-briefing` on the SSH alias `daily-briefing-prod`. The production hostname and SSH username belong in local `~/.ssh/config`, not in tracked project files. Use the Python environment provisioned for that checkout; do not assume a local `venv/` already exists. Dependencies are listed in `requirements.txt`.
 
 Generate a complete HTML/image preview without sending email:
 
@@ -51,6 +51,18 @@ Run regression tests without generating or sending a briefing:
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+## Syncing Changes to Production
+
+After making and validating changes to this checkout (including project guidance), commit the task's changes, push them to GitHub, and sync the production checkout. This is part of completing the task unless Jay explicitly requests otherwise.
+
+- Inspect local and production Git status and branch state before syncing. Preserve unrelated work; do not include it in the task's commit.
+- GitHub `origin/master` is the production branch. Sync completed changes through it; do not deploy an unmerged feature branch or bypass a requested review workflow.
+- Connect with `ssh daily-briefing-prod`. In `~/daily-briefing`, update `master` with `git pull --ff-only origin master` once the intended changes are on GitHub.
+- Verify that the local production branch, GitHub `master`, and production checkout have the same commit and that both working trees are clean. Report any unrelated changes that prevent a clean status instead of discarding them.
+- Never force-push, discard local or server changes, or overwrite divergent history. If synchronization is blocked, report which copies remain out of sync and why.
+- Keep the actual production IP/hostname, SSH username, and credentials out of tracked files. If the SSH alias is unavailable, request its local configuration rather than putting connection details in this repository.
+- Syncing code does not authorize running the briefing or sending email.
 
 ## Environment
 
