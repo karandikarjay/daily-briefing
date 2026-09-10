@@ -46,7 +46,7 @@ from models.data_models import (
 
 def generate_images(client: OpenAI, axios_response: AxiosNewsletterResponse) -> Dict[str, str]:
     """
-    Generates images using OpenAI's gpt-image-1.5 for each story's image_description.
+    Generates images using OpenAI's gpt-image-2.5-sunburst for each story's image_description.
 
     Args:
         client: The OpenAI client instance
@@ -82,7 +82,7 @@ def generate_images(client: OpenAI, axios_response: AxiosNewsletterResponse) -> 
                 # Define the output image path
                 image_path = os.path.join(temp_dir, f"{image_id}.png")
 
-                # Generate the image using OpenAI's gpt-image-1.5
+                # Generate the image using OpenAI's gpt-image-2.5-sunburst
                 image_data = call_openai_image_generation(client, prompt)
 
                 # Save the image

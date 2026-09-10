@@ -21,7 +21,7 @@ A Python application that gathers RSS feeds, sitemaps, FAST emails, and Tavily w
 
 - Text: `claude-opus-5` by default, with adaptive thinking and medium effort; `AI_MODEL` can override the primary model.
 - Text fallback: OpenAI `gpt-5.6-sol` when the primary provider is unavailable.
-- Images: OpenAI `gpt-image-1.5`, medium quality, 1536x1024 PNG; photorealistic illustrations labeled as AI-generated.
+- Images: OpenAI `gpt-image-2.5-sunburst`, medium quality, 1536x1024 PNG; photorealistic illustrations labeled as AI-generated.
 
 ## Running and Testing
 

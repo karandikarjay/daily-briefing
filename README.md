@@ -23,7 +23,7 @@ Future Appetite collects content from multiple sources, processes it using AI to
   - Generate an Axios-style newsletter with Smart Brevity principles
   - Create scannable content with "What", "Why it matters", and "Go deeper" sections
 
-- **AI Image Generation**: Uses OpenAI's gpt-image-1.5 to generate photorealistic images for each story
+- **AI Image Generation**: Uses OpenAI's gpt-image-2.5-sunburst to generate photorealistic images for each story
 
 - **Financial Charts**: Generates visual charts for financial data including:
   - Beyond Meat (BYND) stock price
@@ -72,7 +72,7 @@ daily-briefing/
 
 - Python 3.9+
 - Anthropic API key (for Claude Opus 5 text generation)
-- OpenAI API key (for gpt-image-1.5 image generation)
+- OpenAI API key (for gpt-image-2.5-sunburst image generation)
 - Gmail account (for sending emails)
 - Required Python packages (see requirements.txt)
 
@@ -137,7 +137,7 @@ The application is configured through the `config.py` file, which includes:
 
 3. **Newsletter Generation**: Claude selects up to 3 verified stories and generates an Axios-style newsletter with Smart Brevity principles.
 
-4. **Image Generation**: OpenAI's gpt-image-1.5 generates photorealistic images for each story.
+4. **Image Generation**: OpenAI's gpt-image-2.5-sunburst generates photorealistic images for each story.
 
 5. **Chart Generation**: Financial charts are created using matplotlib and yfinance data.
 
@@ -182,7 +182,7 @@ To add a new section to the briefing:
 ## Acknowledgements
 
 - Anthropic for providing Claude Opus 5
-- OpenAI for providing gpt-image-1.5 image generation
+- OpenAI for providing gpt-image-2.5-sunburst image generation
 - yfinance for financial data
 - All the content sources that make this briefing possible
 

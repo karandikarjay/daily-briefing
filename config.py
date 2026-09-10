@@ -190,8 +190,8 @@ FAST_EMAILS = [
     "list@fastcommunity.org"
 ]
 
-# OpenAI Image Generation configuration (using gpt-image-1.5)
-IMAGE_MODEL = "gpt-image-1.5"
+# OpenAI Image Generation configuration (using gpt-image-2.5-sunburst)
+IMAGE_MODEL = "gpt-image-2.5-sunburst"
 IMAGE_SIZE = "1536x1024"  # Landscape format for newsletter
 IMAGE_QUALITY = "medium"  # Balance between quality and cost
 IMAGE_OUTPUT_FORMAT = "png"

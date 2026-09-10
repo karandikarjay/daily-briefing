@@ -127,12 +127,12 @@ def call_openai_image_generation(
     output_format: str = IMAGE_OUTPUT_FORMAT
 ) -> bytes:
     """
-    Generates an image using OpenAI's gpt-image-1.5 model with exponential backoff for retries.
+    Generates an image using OpenAI's gpt-image-2.5-sunburst model with exponential backoff for retries.
 
     Args:
         client: The OpenAI client instance
         prompt: Text description of the image to generate
-        model: The image model to use (default: gpt-image-1.5)
+        model: The image model to use (default: gpt-image-2.5-sunburst)
         size: Image size (default: 1536x1024 for landscape)
         quality: Image quality - low, medium, or high (default: medium)
         output_format: Output format - png, jpeg, or webp (default: png)
@@ -143,7 +143,7 @@ def call_openai_image_generation(
     import base64
 
     def api_call():
-        # Try with output_format first (newer OpenAI SDK for gpt-image-1.5)
+        # Try with output_format first (newer OpenAI SDK for gpt-image-2.5-sunburst)
         # Fall back to response_format if output_format is not supported
         try:
             return client.images.generate(
