@@ -7,6 +7,7 @@ This module provides functions for creating financial charts for the daily brief
 import logging
 import time
 import matplotlib.pyplot as plt
+from charts.style import finish_chart
 import yfinance as yf
 import pandas as pd
 from config import TICKERS, CHART_STYLE, CHART_COLOR, GRID_COLOR, BACKGROUND_COLOR, CHART_DPI
@@ -53,20 +54,6 @@ def create_charts() -> None:
                      fontsize=14, color=CHART_COLOR,
                      ha='left', va='center')
 
-        # Updated titles to match the tone
-        if ticker == 'BYND':
-            title = "Beyond Meat Stock Price"
-        elif ticker == 'OTLY':
-            title = "Oatly Stock Price"
-        elif ticker == '^GSPC':
-            title = "S&P 500"
-        else:
-            title = f"{info['display_name']}"
-            
-        plt.title(title, color=CHART_COLOR, fontsize=18, pad=20, fontweight='bold')
-        
-        ax.tick_params(colors=CHART_COLOR, labelsize=12)
-        plt.tight_layout()
-        plt.savefig(info['filename'], dpi=CHART_DPI, bbox_inches='tight', facecolor=BACKGROUND_COLOR)
+        finish_chart(ax, info['filename'])
         plt.close()
         logging.info(f"Saved chart: {info['filename']}") 

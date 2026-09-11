@@ -9,6 +9,7 @@ import logging
 from datetime import datetime, timedelta
 import pandas as pd
 import matplotlib.pyplot as plt
+from charts.style import finish_chart
 from config import EGG_PRICE_CHART_PATH, CHART_STYLE, CHART_COLOR, GRID_COLOR, BACKGROUND_COLOR, CHART_DPI
 
 # FRED series: Average Price, Eggs, Grade A, Large ($/dozen), monthly
@@ -58,10 +59,7 @@ def extract_egg_price_chart() -> None:
             va="center",
         )
 
-        plt.title("US Egg Prices ($/dozen)", color=CHART_COLOR, fontsize=18, pad=20, fontweight="bold")
-        ax.tick_params(colors=CHART_COLOR, labelsize=12)
-        plt.tight_layout()
-        plt.savefig(EGG_PRICE_CHART_PATH, dpi=CHART_DPI, bbox_inches="tight", facecolor=BACKGROUND_COLOR)
+        finish_chart(ax, EGG_PRICE_CHART_PATH)
         plt.close()
 
         logging.info(f"Egg price chart saved to: {EGG_PRICE_CHART_PATH}")

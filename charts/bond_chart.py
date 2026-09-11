@@ -7,7 +7,7 @@ This module retrieves and processes Beyond Meat bond price data using Selenium.
 import logging
 import os
 import time
-from PIL import Image, ImageDraw, ImageFont
+from charts.style import transparent_screenshot
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -18,7 +18,7 @@ from config import BEYOND_MEAT_BOND_URL, BEYOND_MEAT_BOND_CHART_PATH
 def get_beyond_meat_bond_chart() -> None:
     """
     Uses Selenium to capture a screenshot of Beyond Meat's bond price chart,
-    adds a title, and saves it as an image file.
+    removes the white matte, and saves a transparent image file.
     """
     temp_screenshot_path = os.path.join(os.path.dirname(BEYOND_MEAT_BOND_CHART_PATH), "chart_only.png")
     
@@ -86,55 +86,9 @@ def get_beyond_meat_bond_chart() -> None:
                 chart_container.screenshot(temp_screenshot_path)
                 logging.info("Chart container screenshot taken as last resort!")
         
-        # Add title to the image using PIL
         if os.path.exists(temp_screenshot_path):
-            logging.info("Adding title to the bond chart image...")
-            # Open the image
-            img = Image.open(temp_screenshot_path)
-            width, height = img.size
-            
-            # Create a new image with extra space at the top for the title
-            title_height = 38  # Height for the title section (18px font + padding)
-            new_img = Image.new('RGB', (width, height + title_height), color=(255, 255, 255))
-            new_img.paste(img, (0, title_height))
-            
-            # Add title
-            draw = ImageDraw.Draw(new_img)
-            
-            # Try to use a nice font, with fallback to default
-            try:
-                # Try to find a suitable font - adjust path if needed
-                font_paths = [
-                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux
-                    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",  # macOS
-                    "/Library/Fonts/Arial Bold.ttf",  # macOS (alternate location)
-                    "C:/Windows/Fonts/arialbd.ttf"  # Windows
-                ]
-                
-                font = None
-                for path in font_paths:
-                    if os.path.exists(path):
-                        font = ImageFont.truetype(path, 18)  # Font size to match stock chart titles
-                        break
-                        
-                if font is None:
-                    # Use default font if none of the specified fonts are found
-                    font = ImageFont.load_default()
-                    
-            except Exception:
-                font = ImageFont.load_default()
-            
-            # Draw the title
-            title_text = "Beyond Meat Bond Price"
-            text_width = draw.textlength(title_text, font=font) if hasattr(draw, 'textlength') else font.getlength(title_text)
-            position = ((width - text_width) // 2, 10)  # Center the title vertically
-            
-            # Draw the text - use color matching the financial chart style
-            draw.text(position, title_text, fill=(30, 61, 89), font=font)  # Match CHART_COLOR
-            
-            # Save the new image
-            new_img.save(BEYOND_MEAT_BOND_CHART_PATH)
-            logging.info(f"Bond chart image with title saved to: {BEYOND_MEAT_BOND_CHART_PATH}")
+            transparent_screenshot(temp_screenshot_path, BEYOND_MEAT_BOND_CHART_PATH)
+            logging.info("Saved transparent bond chart: %s", BEYOND_MEAT_BOND_CHART_PATH)
         else:
             logging.error(f"Error: Screenshot file {temp_screenshot_path} not found")
         

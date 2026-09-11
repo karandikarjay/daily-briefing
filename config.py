@@ -148,9 +148,9 @@ TIMEZONE = ZoneInfo("America/New_York")
 
 # Chart styling
 CHART_STYLE = 'seaborn-v0_8-darkgrid'
-CHART_COLOR = '#1e3d59'
-GRID_COLOR = '#e0e0e0'
-BACKGROUND_COLOR = '#ffffff'
+CHART_COLOR = '#42859a'
+GRID_COLOR = '#888888'
+BACKGROUND_COLOR = 'none'
 CHART_DPI = 300
 
 # Email SMTP and IMAP settings
