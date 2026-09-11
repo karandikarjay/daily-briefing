@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 from urllib.parse import urlparse
 
-from config import TAVILY_API_KEY, TAVILY_QUERIES, TAVILY_MAX_RAW_CONTENT_CHARS, TIMEZONE
+from config import TAVILY_API_KEY, TAVILY_QUERIES, TAVILY_RESCUE_QUERIES, TAVILY_MAX_RAW_CONTENT_CHARS, TIMEZONE
 from utils.api_utils import get_content_collection_timeframe
 
 
@@ -34,7 +34,7 @@ def _extract_domain(url: str) -> str:
         return "unknown"
 
 
-def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
+def get_tavily_content(section_title: str, *, rescue=False, audit=None, window=None) -> List[Dict[str, str]]:
     """
     Retrieve recent news articles for a section using Tavily web search.
 
@@ -44,11 +44,14 @@ def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
     Returns:
         List of dicts with keys: url, title, article, datetime, source_name
     """
+    stage = {'stage': 'discovery', 'topic': section_title, 'attempt': 2 if rescue else 1}
     if not TAVILY_API_KEY:
+        if audit is not None:
+            audit.append({**stage, 'reason': 'search_unavailable', 'result_count': 0})
         logging.warning("TAVILY_API_KEY not set — skipping Tavily search")
         return []
 
-    queries = TAVILY_QUERIES.get(section_title)
+    queries = (TAVILY_RESCUE_QUERIES if rescue else TAVILY_QUERIES).get(section_title)
     if not queries:
         logging.warning(f"No Tavily queries configured for section: {section_title}")
         return []
@@ -61,7 +64,7 @@ def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
 
     client = TavilyClient(api_key=TAVILY_API_KEY)
     days = _get_search_days()
-    start_time, end_time = get_content_collection_timeframe()
+    start_time, end_time = window or get_content_collection_timeframe()
     seen_urls: set = set()
     results: List[Dict[str, str]] = []
 
@@ -72,15 +75,19 @@ def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
             logging.info(f"Tavily search [{section_title}]: '{query}' (days={days})")
             response = client.search(
                 query=query,
-                topic="news",
+                topic="general" if rescue else "news",
                 search_depth="advanced",
                 include_raw_content=True,
                 start_date=start_time.date().isoformat(),
                 end_date=(end_time.date() + timedelta(days=1)).isoformat(),
-                max_results=5,
+                max_results=8 if rescue else 5,
                 timeout=30,
             )
 
+            if audit is not None:
+                audit.append({**stage, 'query': query, 'reason': 'search_completed',
+                              'result_count': len(response.get('results', [])),
+                              'urls': [r.get('url') for r in response.get('results', [])]})
             for item in response.get("results", []):
                 url = item.get("url", "")
                 if not url or url in seen_urls:
@@ -91,7 +98,7 @@ def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
                 if TAVILY_MAX_RAW_CONTENT_CHARS and len(raw_content) > TAVILY_MAX_RAW_CONTENT_CHARS:
                     raw_content = raw_content[:TAVILY_MAX_RAW_CONTENT_CHARS]
 
-                # Parse published_date and filter against the exact timeframe
+                # Retain the search date only as a discovery hint
                 published = item.get("published_date")
                 dt = None
                 if published:
@@ -101,13 +108,8 @@ def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
                     except (ValueError, TypeError):
                         dt = None
 
-                if dt and not (start_time <= dt <= end_time):
-                    logging.info(
-                        f"Tavily [{section_title}]: skipping '{item.get('title', '')[:60]}' "
-                        f"— published {dt.isoformat()} is outside timeframe"
-                    )
-                    continue
-
+                # Search timestamps are discovery hints, including imprecise
+                # midnight dates. The publisher metadata decides eligibility.
                 if not dt:
                     logging.warning(
                         f"Tavily [{section_title}]: no published date for '{item.get('title', '')[:60]}' "
@@ -125,7 +127,10 @@ def get_tavily_content(section_title: str) -> List[Dict[str, str]]:
                     "date_kind": "search.discovery",
                 })
 
-        except Exception:
+        except Exception as exc:
+            if audit is not None:
+                audit.append({**stage, 'query': query, 'reason': 'search_failed',
+                              'error_type': type(exc).__name__, 'result_count': 0})
             logging.exception(f"Tavily search failed for query '{query}' in [{section_title}]")
             continue
 

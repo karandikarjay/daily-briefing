@@ -55,7 +55,7 @@ def limit_content_by_tokens(content_list: List[Dict[str, Any]], max_tokens: int,
     
     return content
 
-def get_content(title: str, max_tokens: int = 20000) -> List[Dict[str, Any]]:
+def get_content(title: str, max_tokens: int = 20000, *, audit=None) -> List[Dict[str, Any]]:
     """
     Returns content based on the provided title.
     Dispatches to different content-retrieval functions and limits total tokens.
@@ -72,16 +72,16 @@ def get_content(title: str, max_tokens: int = 20000) -> List[Dict[str, Any]]:
     if title == "Alternative Protein":
         all_content.extend(get_gq_content())
         all_content.extend(get_vegconomist_content())
-        all_content.extend(get_tavily_content("Alternative Protein"))
+        all_content.extend(get_tavily_content("Alternative Protein", audit=audit))
     elif title == "Vegan Movement":
         # FAST emails are the primary source — reserve token budget for them
         fast_content = get_fast_email_content()
-        tavily_content = get_tavily_content("Vegan Movement")
+        tavily_content = get_tavily_content("Vegan Movement", audit=audit)
         all_content.extend(fast_content)
         all_content.extend(tavily_content)
         return all_content
     elif title == "AI":
-        all_content.extend(get_tavily_content("AI"))
+        all_content.extend(get_tavily_content("AI", audit=audit))
     else:
         logging.warning(f"No content retrieval function defined for title: {title}")
         return all_content

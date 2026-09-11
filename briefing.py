@@ -13,11 +13,12 @@ from anthropic import Anthropic
 from openai import OpenAI
 from config import ANTHROPIC_API_KEY, OPENAI_API_KEY, AI_MODEL, TEXT_FALLBACK_MODEL, SECTIONS, TEMPLATE_PATH, TIMEZONE, GOOGLE_USERNAME
 from content import get_content
-from content.content_manager import limit_content_by_tokens
+from content.ranking import selection_sources
+from content.tavily_content import get_tavily_content
 from content.freshness import Freshness, in_window, date_interval
 from content.verification import select_verified, ask, FinalReview
 from models.data_models import StoryBullet
-from utils.api_utils import get_content_collection_timeframe, num_tokens_from_string
+from utils.api_utils import get_content_collection_timeframe
 from utils.logging_setup import setup_logging
 from utils.email_utils import send_email
 from utils.html_utils import generate_email_html
@@ -108,7 +109,7 @@ def review_stories(client, fallback, newsletter, selected):
             "Reject old events recast as new, unsupported comparisons and topic mismatches. "
             "Clearly framed analysis is allowed. Illustrations are not reporting.",
             {'story': story.model_dump(), 'verified_evidence': item, 'topic_requirements': requirements})
-        reviews.append({'source_id': story.source_id, **review.model_dump()})
+        reviews.append({'stage': 'final_review', 'topic': story.topic, 'source_id': story.source_id, **review.model_dump()})
         if review.approved:
             kept.append(story)
         else:
@@ -129,20 +130,42 @@ def refresh_summary(newsletter):
         newsletter.intro = 'No verified new developments met the freshness checks for this edition.'
 
 
-def compose_with_replacements(client, fallback, sources_by_topic, freshness, history, writer):
+def compose_with_replacements(client, fallback, sources_by_topic, freshness, history, writer, discover=None):
     """Try another shortlist after a failed selection or final review, at most twice/topic."""
     from models.data_models import AxiosNewsletterResponse
     newsletter = AxiosNewsletterResponse(subject='', intro='', stories=[])
     selected, decisions, reviews = [], [], []
     attempted = set()
+    sources_by_topic = {topic: list(items) for topic, items in sources_by_topic.items()}
     for attempt in range(2):
         present = {story.topic for story in newsletter.stories}
         batch = []
         for section in SECTIONS:
             if section['title'] in present:
                 continue
-            remaining = [s for s in sources_by_topic.get(section['title'], []) if s['source_id'] not in attempted]
-            verified, audit = select_verified(client, fallback, section, remaining, freshness, history)
+            topic = section['title']
+            if attempt == 1 and discover is not None:
+                additions = freshness.filter(discover(topic), topic=topic, attempt=2)
+                known = {s['source_id'] for s in sources_by_topic.get(topic, [])}
+                sources_by_topic.setdefault(topic, []).extend(s for s in additions if s['source_id'] not in known)
+            remaining = []
+            for source in sources_by_topic.get(topic, []):
+                reason = ('already_attempted' if source['source_id'] in attempted else
+                          'previously_covered_or_rejected' if any(source['source_id'] == h.get('source_id') for h in history) else None)
+                if reason:
+                    freshness.pipeline_audit.append({'stage': 'history', 'topic': topic, 'attempt': attempt + 1,
+                                                     'source_id': source['source_id'], 'accepted': False, 'reason': reason})
+                else:
+                    remaining.append(source)
+            available = selection_sources(client, fallback, section, remaining, freshness.pipeline_audit, attempt + 1)
+            verified, audit = select_verified(client, fallback, section, available, freshness, history)
+            shortlisted = {d['candidate']['source_id'] for d in audit}
+            for source in available:
+                freshness.pipeline_audit.append({'stage': 'shortlist', 'topic': topic, 'attempt': attempt + 1,
+                                                 'source_id': source['source_id'], 'accepted': source['source_id'] in shortlisted,
+                                                 'reason': 'verification_attempted' if source['source_id'] in shortlisted else 'not_verified_in_shortlist'})
+            for decision in audit:
+                decision.update({'stage': 'verification', 'topic': topic, 'attempt': attempt + 1})
             attempted.update(d['candidate']['source_id'] for d in audit)
             attempted.update(n['source_id'] for n in verified)
             decisions.extend(audit)
@@ -209,25 +232,18 @@ def run():
         history = load_history(include_rejections=True, replay_edition=not args.send_to_everyone)
         sources_by_topic = {}
         for section in SECTIONS:
-            sources = freshness.filter(get_content(section['title']))
-            sources = [s for s in sources if not any(s['source_id'] == h.get('source_id') for h in history)]
-            if section['title'] == 'Vegan Movement':
-                # Preserve the established priority for firsthand FAST announcements.
-                emails = limit_content_by_tokens([s for s in sources if s['source_type'] == 'email'], 20000, 'FAST')
-                budget = max(0, 20000 - num_tokens_from_string(json.dumps(emails)))
-                articles = limit_content_by_tokens([s for s in sources if s['source_type'] == 'article'], budget, 'Vegan Movement articles')
-                sources = emails + articles
-            else:
-                sources = limit_content_by_tokens(sources, 20000, section['title'])
-            sources_by_topic[section['title']] = sources
+            sources_by_topic[section['title']] = freshness.filter(
+                get_content(section['title'], audit=freshness.pipeline_audit), topic=section['title'])
         newsletter, selected, decisions, review = compose_with_replacements(
             client, fallback, sources_by_topic, freshness, history,
-            lambda c, f, items: generate_cohesive_newsletter(c, f, items, prompt_logger))
+            lambda c, f, items: generate_cohesive_newsletter(c, f, items, prompt_logger),
+            discover=lambda topic: get_tavily_content(topic, rescue=True, audit=freshness.pipeline_audit,
+                                                     window=(start, end)))
         remember_rejections(decisions, start, end)
         stamp = datetime.now(TIMEZONE).strftime('%Y%m%d-%H%M%S')
         directory = ROOT / 'previews' / stamp
         directory.mkdir(parents=True, mode=0o700)
-        save_json(directory / 'audit.json', {'window_start': start.isoformat(), 'window_end_exclusive': end.isoformat(), 'model': AI_MODEL, 'sources': freshness.audit, 'decisions': decisions})
+        save_json(directory / 'audit.json', {'window_start': start.isoformat(), 'window_end_exclusive': end.isoformat(), 'model': AI_MODEL, 'sources': freshness.audit, 'pipeline': freshness.pipeline_audit, 'decisions': decisions})
         save_json(directory / 'final-review.json', review)
         subject = newsletter.subject
         present = {n['topic'] for n in selected}

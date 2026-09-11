@@ -57,7 +57,7 @@ def in_window(value, start, end):
     return start <= lo < end and hi <= end
 
 
-def publication_dates(html):
+def publication_dates(html, url=None):
     soup = BeautifulSoup(html, 'html.parser')
     dates = []
     for tag in soup.find_all('meta'):
@@ -65,6 +65,14 @@ def publication_dates(html):
         if name in ('article:published_time', 'datepublished', 'date', 'pubdate', 'parsely-pub-date', 'dc.date.issued', 'citation_publication_date'):
             if tag.get('content'):
                 dates.append({'value': tag['content'], 'kind': name})
+
+    def belongs_to_page(obj):
+        if not url:
+            return True
+        identity = obj.get('mainEntityOfPage') or obj.get('url') or obj.get('@id')
+        if isinstance(identity, dict):
+            identity = identity.get('@id') or identity.get('url')
+        return not isinstance(identity, str) or canonical_url(urljoin(url, identity)) == canonical_url(url)
 
     def walk(obj):
         if isinstance(obj, list):
@@ -74,7 +82,7 @@ def publication_dates(html):
             typ = obj.get('@type', [])
             typ = [typ] if isinstance(typ, str) else typ
             if any(t in ('Article', 'NewsArticle', 'BlogPosting', 'Report', 'ScholarlyArticle') for t in typ):
-                if isinstance(obj.get('datePublished'), str):
+                if belongs_to_page(obj) and isinstance(obj.get('datePublished'), str):
                     dates.append({'value': obj['datePublished'], 'kind': 'jsonld.datePublished'})
             if '@graph' in obj:
                 walk(obj['@graph'])
@@ -83,10 +91,33 @@ def publication_dates(html):
             walk(json.loads(script.string or script.get_text()))
         except (ValueError, TypeError):
             pass
-    for tag in soup.select('time[datetime]'):
-        classes = ' '.join(tag.get('class', [])).lower()
-        if tag.get('itemprop') == 'datePublished' or 'published' in classes:
-            dates.append({'value': tag['datetime'], 'kind': 'visible.time.published'})
+    # Only the main article's byline dates belong to this URL. Related cards,
+    # navigation and sidebars routinely contain unrelated publication dates.
+    heading = soup.find('h1')
+    scope = heading.find_parent('article') if heading else None
+    if scope is None and heading:
+        scope = heading.find_parent('main')
+    if scope:
+        for tag in scope.select('time[datetime]'):
+            if tag.find_parent(['aside', 'nav', 'footer']):
+                continue
+            ancestors = []
+            for parent in tag.parents:
+                if parent is scope:
+                    break
+                ancestors.append(parent)
+            if any(re.search(r'related|sidebar|recommend|newsletter|comment',
+                             ' '.join(parent.get('class', [])), re.I) for parent in ancestors):
+                continue
+            owner = tag.find_parent('article')
+            if owner is not None and owner is not scope:
+                continue
+            classes = ' '.join(tag.get('class', [])).lower()
+            label = tag.get_text(' ', strip=True).lower()
+            if tag.get('itemprop') == 'dateModified' or re.search(r'last updated|modified|updated on', label):
+                continue
+            if tag.get('itemprop') == 'datePublished' or 'published' in classes:
+                dates.append({'value': tag['datetime'], 'kind': 'visible.time.published'})
     return dates
 
 
@@ -121,6 +152,7 @@ class Freshness:
         self.start, self.end = start, end
         self.cache = {}
         self.audit = []
+        self.pipeline_audit = []
 
     def inspect(self, item):
         record = dict(item)
@@ -149,7 +181,7 @@ class Freshness:
                 final_url, html = fetched
                 record['url'] = canonical_url(final_url)
                 record['source_id'] = source_id(record)
-                record['date_evidence'] = publication_dates(html)
+                record['date_evidence'] = publication_dates(html, final_url)
                 soup = BeautifulSoup(html, 'html.parser')
                 for tag in soup(['script', 'style', 'nav', 'footer']):
                     tag.decompose()
@@ -161,25 +193,39 @@ class Freshness:
         evidence = record['date_evidence']
         parsed = [date_interval(d['value']) for d in evidence]
         valid = bool(evidence) and all(parsed)
+        precise = [d['value'] for d, interval in zip(evidence, parsed)
+                   if interval and interval[0] == interval[1]]
+        precise_dates = [date_interval(value)[0] for value in precise]
+        reason = 'missing_publication_date' if not evidence else 'ambiguous_publication_date'
         if valid:
-            # Divergent original publication dates need resolution, not guessing.
-            valid = max(x[0] for x in parsed) <= min(x[1] for x in parsed) + timedelta(minutes=5)
-        # A precise publisher timestamp can resolve a matching date-only field.
-        precise = [d['value'] for d in evidence if date_interval(d['value']) and date_interval(d['value'])[0] == date_interval(d['value'])[1]]
+            if precise_dates:
+                valid = max(precise_dates) - min(precise_dates) <= timedelta(minutes=5)
+                # Date-only fields use the publisher's calendar, not an invented
+                # midnight in New York. Precise, offset-aware dates resolve them.
+                calendars = {d.date().isoformat() for d in precise_dates}
+                calendars.update(d.astimezone(TIMEZONE).date().isoformat() for d in precise_dates)
+                valid = valid and all(d['value'] in calendars for d, interval in zip(evidence, parsed)
+                                      if interval[0] != interval[1])
+            else:
+                valid = len({x[0] for x in parsed}) == 1
+            reason = 'conflicting_publication_dates'
         chosen = precise[0] if precise else (evidence[0]['value'] if evidence else None)
-        record['date_verified'] = valid and in_window(chosen, self.start, self.end) and all(in_window(v, self.start, self.end) for v in precise)
+        record['date_verified'] = bool(valid and in_window(chosen, self.start, self.end)
+                                       and all(in_window(v, self.start, self.end) for v in precise))
+        record['date_reason'] = ('publication_in_window' if record['date_verified'] else
+                                 'publication_out_of_window' if valid else reason)
         record['published_at'] = chosen if valid else None
         record['datetime'] = record['published_at']
         return record
 
-    def filter(self, items):
+    def filter(self, items, topic=None, attempt=1):
         accepted, seen = [], set()
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=6) as pool:
             records = list(pool.map(self.inspect, items))
         for record in records:
             ok = record['date_verified']
-            self.audit.append({'source_id': record['source_id'], 'url': record.get('url'), 'title': record.get('title', record.get('subject')), 'accepted': ok, 'reason': 'publication_in_window' if ok else 'missing_ambiguous_conflicting_or_out_of_window_date', 'date_evidence': record['date_evidence']})
+            self.audit.append({'source_id': record['source_id'], 'url': record.get('url'), 'title': record.get('title', record.get('subject')), 'accepted': ok, 'stage': 'publication', 'topic': topic, 'attempt': attempt, 'reason': record['date_reason'], 'date_evidence': record['date_evidence']})
             if ok and record['source_id'] not in seen:
                 seen.add(record['source_id'])
                 accepted.append(record)

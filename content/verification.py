@@ -145,7 +145,7 @@ When in doubt, accepted=false. Explain why. Never resolve conflicting evidence b
         ok = bool(verdict and validate_verdict(verdict, candidate, evidence, freshness.start, freshness.end))
         if verdict and any(verdict.event_key.casefold() == x.get('event_key', '').casefold() for x in history):
             ok = False
-        audit.append({'candidate': candidate.model_dump(), 'verdict': verdict.model_dump() if verdict else None, 'accepted': ok, 'search_evidence': discovered})
+        audit.append({'candidate': candidate.model_dump(), 'verdict': verdict.model_dump() if verdict else None, 'accepted': ok, 'reason': ('verified' if ok else 'editorial_rejection' if verdict and not verdict.accepted else 'evidence_or_announcement_date_validation_failed'), 'search_evidence': discovered})
         if ok:
             proof = evidence[verdict.evidence_source_id]
             accepted.append({**candidate.model_dump(), 'topic': section['title'], 'event_key': verdict.event_key, 'announcement_date': verdict.announcement_date, 'published_at': proof['published_at'], 'date_evidence': proof['date_evidence'], 'source_name': proof.get('source_name', ''), 'source_link': proof.get('url'), 'source_type': proof['source_type'], 'email_subject': proof.get('subject'), 'email_sender': proof.get('email_sender'), 'evidence_quote': verdict.evidence_quote, 'evidence_source_id': proof['source_id'], 'evidence_text': proof.get('article') or proof.get('body', '')})

@@ -153,7 +153,7 @@ class ModelAndDelivery(unittest.TestCase):
             markup = b'<p>Source name\r\n &lt;source@example.com&gt;</p>'
             (path / 'newsletter.html').write_bytes(markup)
             (path / 'delivery.json').write_text(json.dumps({'html_sha256': hashlib.sha256(markup).hexdigest(), 'subject': 'Test', 'images': {}, 'selected': []}))
-            with patch('briefing.send_email', return_value=True) as send:
+            with patch('briefing.GOOGLE_USERNAME', 'test@example.com'), patch('briefing.send_email', return_value=True) as send:
                 deliver(path)
                 self.assertEqual(send.call_args.args[0].encode(), markup)
 
@@ -164,7 +164,7 @@ class ModelAndDelivery(unittest.TestCase):
             path = Path(tmp)
             (path / 'newsletter.html').write_text('hello')
             (path / 'delivery.json').write_text(json.dumps({'html_sha256': hashlib.sha256(b'hello').hexdigest(), 'subject': 'Test', 'images': {}, 'selected': []}))
-            with patch('briefing.send_email', return_value=True) as send:
+            with patch('briefing.GOOGLE_USERNAME', 'test@example.com'), patch('briefing.send_email', return_value=True) as send:
                 deliver(path)
                 with self.assertRaises(FileExistsError):
                     deliver(path)
@@ -176,7 +176,7 @@ class ModelAndDelivery(unittest.TestCase):
             root = Path(tmp)
             template = root / 'template.html'
             template.write_text('<html><body>{newsletter_content}</body></html>')
-            with patch('sys.argv', ['main.py', '--dry-run']), patch('briefing.ROOT', root), patch('briefing.STATE', root / 'state'), patch('briefing.TEMPLATE_PATH', str(template)), patch('briefing.setup_logging', return_value=(MagicMock(), MagicMock())), patch('briefing.get_content', return_value=[]), patch('briefing.Anthropic'), patch('briefing.OpenAI'), patch('main.generate_images', return_value={}), patch('charts.create_charts'), patch('charts.get_beyond_meat_bond_chart'), patch('charts.extract_egg_price_chart'), patch('briefing.send_email') as send:
+            with patch('sys.argv', ['main.py', '--dry-run']), patch('briefing.ROOT', root), patch('briefing.STATE', root / 'state'), patch('briefing.TEMPLATE_PATH', str(template)), patch('briefing.setup_logging', return_value=(MagicMock(), MagicMock())), patch('briefing.get_content', return_value=[]), patch('briefing.get_tavily_content', return_value=[]), patch('briefing.Anthropic'), patch('briefing.OpenAI'), patch('main.generate_images', return_value={}), patch('charts.create_charts'), patch('charts.get_beyond_meat_bond_chart'), patch('charts.extract_egg_price_chart'), patch('briefing.send_email') as send:
                 briefing.run()
                 send.assert_not_called()
                 previews = list((root / 'previews').glob('*/newsletter.html'))

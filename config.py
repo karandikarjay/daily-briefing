@@ -183,6 +183,26 @@ TAVILY_QUERIES = {
         "AI workflow automation tool release",
     ],
 }
+# A bounded second discovery pass for topics still empty after review.
+# Fixed public queries never include private FAST email content.
+TAVILY_RESCUE_QUERIES = {
+    "Alternative Protein": [
+        '"plant-based protein" cafe coffee restaurant partnership launch',
+        '"plant-based" retail supermarket launch distribution',
+        '"cultivated meat" "announcement" funding commercialization',
+        '"fermentation" protein company funding launch partnership',
+        '"plant-based protein" partnership site:prnewswire.com',
+        '"alternative protein" launch site:businesswire.com',
+    ],
+    "Vegan Movement": [
+        'farmed animal advocacy new report campaign results',
+        'cage-free animal welfare policy announcement nonprofit',
+    ],
+    "AI": [
+        'AI tool new feature release available research writing coding',
+        'AI productivity automation launch announcement',
+    ],
+}
 TAVILY_MAX_RAW_CONTENT_CHARS = 8000
 
 FAST_EMAILS = [
