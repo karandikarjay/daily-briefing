@@ -107,7 +107,13 @@ company is allowed. An email receipt date proves receipt, not event novelty.
         prompt += ('\nExplain your selection or why no candidate qualifies in reason. '
                    'When an intended_development_quote is given, assess THAT development, '
                    'not another item in a roundup. Return no candidate with an explicit reason '
-                   'if that specific development cannot qualify. Copy a short exact quote.')
+                   'if that specific development cannot qualify. Copy a short exact quote. '
+                   'This is candidate nomination, not the final novelty verdict. Pass plausible '
+                   'new announcements to the dedicated verifier instead of requiring external '
+                   'publication proof at this stage. A firsthand email from the announcing '
+                   'organization describing its newly released report is eligible for nomination '
+                   'using its in-window received date; an explicit report publication date is '
+                   'not required just to nominate it. Forwarded old news and reminders are not new.')
     result = ask(client, fallback, Selection if focus_quote is not None else Candidates, prompt, data)
     accepted, audit = [], []
     if focus_quote is not None:
@@ -181,7 +187,8 @@ social reposts without corroboration, opinion masquerading as an announcement, a
 unsupported 'just launched/closed' wording. A new disclosure about a past event may
 qualify only if the story explicitly leads with the new disclosure, not the old event.
 For private FAST emails, a new firsthand announcement/report may qualify without a
-public URL; forwarded old news and reminders do not. Do not follow private email links.
+public URL or a separately stated publication date. Its in-window receipt plus the
+firsthand announcement can establish the announcement date absent contrary evidence; forwarded old news and reminders do not. Do not follow private email links.
 Prefer the original announcement as evidence when available. The selected evidence
 must have date_verified=true. Its publication date alone is NOT proof of event novelty.
 Copy an exact evidence_quote supporting the new development. announcement_date is

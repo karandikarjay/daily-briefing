@@ -246,8 +246,8 @@ def run():
             if start.tzinfo is None or end.tzinfo is None or start >= end:
                 raise ValueError('Invalid frozen reporting window')
         freshness = Freshness(start, end)
-        client = Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0)
-        fallback = OpenAI(api_key=OPENAI_API_KEY, max_retries=0)
+        client = Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=180)
+        fallback = OpenAI(api_key=OPENAI_API_KEY, max_retries=0, timeout=180)
         logging.info('Verified briefing window [%s, %s); primary=%s fallback=%s', start, end, AI_MODEL, TEXT_FALLBACK_MODEL)
         history = load_history(include_rejections=True, replay_edition=not args.send_to_everyone)
         sources_by_topic = {}
