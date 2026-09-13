@@ -1,40 +1,52 @@
-"""Transparent plots with solid, backed labels for light and dark email UI."""
+"""Transparent charts with a restrained palette shared by light and dark email."""
 
-import matplotlib.patheffects as effects
+import matplotlib.dates as dates
+from matplotlib.ticker import FixedLocator, MaxNLocator
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image
 
-from config import CHART_DPI, GRID_COLOR
+from config import CHART_COLOR, CHART_DPI, GRID_COLOR
+
+LABEL_COLOR = '#898989'
 
 
 def finish_chart(ax, filename):
-    """Keep titles in HTML and give solid labels their own high-contrast surface."""
+    """Use large solid labels, sparse horizontal guides, and unoutlined lines."""
     ax.figure.patch.set_alpha(0)
     ax.patch.set_alpha(0)
     for spine in ax.spines.values():
         spine.set_visible(False)
-    ax.grid(True, linestyle='--', linewidth=0.6, alpha=0.3, color=GRID_COLOR)
-    ax.tick_params(colors='#263238', labelsize=14, length=0, pad=8)
+    ax.grid(False, which='both', axis='both')
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.grid(True, axis='y', linestyle='-', linewidth=0.6, alpha=0.22, color=GRID_COLOR)
+    # Both native chart collectors plot datetime data. Leave numeric axes alone.
+    if isinstance(ax.xaxis.get_major_locator(), dates.DateLocator):
+        start, end = ax.dataLim.intervalx
+        ax.xaxis.set_major_locator(FixedLocator(np.linspace(start, end, 4)))
+        ax.xaxis.set_major_formatter(dates.DateFormatter("%b ’%y"))
+    ax.tick_params(colors=LABEL_COLOR, labelsize=16, length=0, pad=10)
     for line in ax.lines:
-        line.set_path_effects([effects.Stroke(linewidth=3.2, foreground='#f5f5f5'), effects.Normal()])
+        line.set_color(CHART_COLOR)
+        line.set_linewidth(2.4)
+        line.set_path_effects([])
     for label in [*ax.get_xticklabels(), *ax.get_yticklabels(), *ax.texts,
                   ax.xaxis.get_offset_text(), ax.yaxis.get_offset_text()]:
-        label.set_color('#263238')
-        label.set_fontsize(14)
+        label.set_color(LABEL_COLOR)
+        label.set_fontsize(16)
         label.set_fontweight('medium')
         label.set_path_effects([])
-        label.set_bbox(dict(facecolor='#f5f5f5', edgecolor='none',
-                            boxstyle='round,pad=0.18', alpha=1))
+        label.set_bbox(None)
     ax.figure.tight_layout()
     ax.figure.savefig(filename, dpi=CHART_DPI, bbox_inches='tight', transparent=True)
 
 
 def transparent_screenshot(source, destination):
-    """Remove a white screenshot matte, preserving color and antialiased edges.
+    """Restyle the publisher's bond screenshot without moving its data or labels.
 
-    Recover alpha from the darkest channel, then undo compositing against white.
-    Keep the series halo, but place neutral screenshot labels on small opaque
-    rectangles so their original solid glyphs remain readable in either theme.
+    Remove its white matte and map neutral ink to gray and blue ink to teal.
+    Dark label cores are opaque, while pale grid pixels stay faint. Preserve
+    other colored annotations (such as the publisher's red percentage badge).
+    Screenshot dates and tick positions remain those supplied by the publisher.
     """
     with Image.open(source) as image:
         rgb = np.asarray(image.convert('RGB'), dtype=float)
@@ -42,35 +54,11 @@ def transparent_screenshot(source, destination):
     foreground = np.zeros_like(rgb)
     np.divide((rgb - 255 + alpha[..., None]) * 255, alpha[..., None],
               out=foreground, where=alpha[..., None] != 0)
+    neutral = rgb.max(axis=2) - rgb.min(axis=2) < 12
+    blue = (~neutral) & (rgb[..., 2] > rgb[..., 0])
+    foreground[neutral] = [137, 137, 137]
+    foreground[blue] = [int(CHART_COLOR[i:i + 2], 16) for i in (1, 3, 5)]
+    # Solid glyph interiors, with coverage retained at antialiased edges.
+    alpha[neutral] = np.minimum(255, alpha[neutral] * 255 / 160)
     rgba = np.dstack((np.clip(foreground, 0, 255), alpha)).astype('uint8')
-    ink = Image.fromarray(np.where(alpha > 100, 255, 0).astype('uint8'))
-    halo = Image.new('RGBA', ink.size, '#f5f5f5')
-    halo.putalpha(ink.filter(ImageFilter.MaxFilter(3)))
-    # Group nearby neutral glyphs into label-sized patches. Long axes and
-    # grid lines are excluded so the plot itself remains transparent.
-    neutral = (rgb.max(axis=2) - rgb.min(axis=2) < 12) & (alpha > 100)
-    neutral[:, neutral.sum(axis=0) > rgb.shape[0] * 0.4] = False
-    neutral[neutral.sum(axis=1) > rgb.shape[1] * 0.4, :] = False
-    grouped = np.array(Image.fromarray((neutral * 255).astype('uint8'))
-                       .filter(ImageFilter.MaxFilter(9))) > 0
-    seen = np.zeros(grouped.shape, dtype=bool)
-    height, width = grouped.shape
-    draw = ImageDraw.Draw(halo)
-    for y, x in zip(*np.nonzero(grouped)):
-        if seen[y, x]:
-            continue
-        stack = [(y, x)]
-        seen[y, x] = True
-        left = right = x
-        top = bottom = y
-        while stack:
-            cy, cx = stack.pop()
-            left, right = min(left, cx), max(right, cx)
-            top, bottom = min(top, cy), max(bottom, cy)
-            for ny, nx in ((cy - 1, cx), (cy + 1, cx), (cy, cx - 1), (cy, cx + 1)):
-                if 0 <= ny < height and 0 <= nx < width and grouped[ny, nx] and not seen[ny, nx]:
-                    seen[ny, nx] = True
-                    stack.append((ny, nx))
-        if bottom - top < height * 0.2 and right - left < width * 0.3:
-            draw.rounded_rectangle((left, top, right, bottom), radius=2, fill='#f5f5f5')
-    Image.alpha_composite(halo, Image.fromarray(rgba)).save(destination)
+    Image.fromarray(rgba).save(destination)

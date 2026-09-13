@@ -148,7 +148,7 @@ TIMEZONE = ZoneInfo("America/New_York")
 
 # Chart styling
 CHART_STYLE = 'seaborn-v0_8-darkgrid'
-CHART_COLOR = '#42859a'
+CHART_COLOR = '#438F91'
 GRID_COLOR = '#888888'
 BACKGROUND_COLOR = 'none'
 CHART_DPI = 300
