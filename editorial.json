@@ -2,7 +2,7 @@
   "audience": "Jay, his dad, and other people in the vegan movement. Readers want to understand consequential developments, including opportunities to improve outcomes for farm animals.",
   "purpose": "Keep readers informed and explain implications for animals, advocacy effectiveness, alternative protein, and the wider world of AI. Connect findings to possibilities for action without overstating the evidence.",
   "voice": "Axios-inspired: concise, professional, engaging, skeptical but fair. Lead with the news, use short paragraphs and useful bold lead-ins, avoid fluff, hype, formulaic greetings, and gratuitous metaphors. Explain the so what with concrete reasoning.",
-  "selection": "Allocate space freely by consequence, evidence, and relevance. No topic quotas, fixed order, minimum story count, or empty topic headings. One topic may occupy the entire edition. Prefer important developments over routine announcements. Do not force connections between unrelated stories or between AI and vegan advocacy.",
+  "selection": "Allocate space freely by consequence, evidence, and relevance. No topic quotas, fixed order, minimum story count, or empty topic headings. One topic may occupy the entire edition. Prefer important developments over routine announcements. Do not force connections between unrelated stories or between AI and vegan advocacy. Aim for a useful breadth of consequential developments within the reading budget; a single-story edition needs an explicit coverage review, not merely a writer approval.",
   "freshness": "Every story must be anchored in a verified new development within the reporting window. Older material is dated context only. A newly released evaluation of an older intervention can qualify as new evidence; an old evaluation discovered today cannot.",
   "analysis": "Clearly distinguish reported findings from interpretation. For intervention results, explain measured outcomes, evidence strength, and conditions for replication in other geographies when supported. Possibilities for funding or action are questions to investigate, not unsupported recommendations.",
   "topics": {
@@ -12,11 +12,11 @@
   },
   "target_words": 650,
   "max_words": 800,
-  "max_actions": 20,
+  "max_actions": 32,
   "max_searches": 4,
   "max_verifications": 10,
-  "research_seconds": 600,
+  "research_seconds": 900,
   "max_repairs": 2,
-  "max_images": 1,
-  "max_charts": 1
+  "max_images": 8,
+  "max_charts": 5
 }

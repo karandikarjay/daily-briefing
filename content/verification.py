@@ -23,6 +23,15 @@ class Candidates(BaseModel):
     news_items: List[Candidate]
 
 
+class Selection(Candidates):
+    reason: str
+
+
+class QuoteRepair(BaseModel):
+    quote: str
+    reason: str
+
+
 class Verdict(BaseModel):
     candidate_source_id: str
     accepted: bool
@@ -73,7 +82,7 @@ def validate_verdict(verdict, candidate, evidence, start, end):
     return start.date() <= day <= end.date() and bool(verdict.event_key.strip())
 
 
-def select_verified(client, fallback, section, sources, freshness, history, *, max_candidates=3, max_accepted=1):
+def select_verified(client, fallback, section, sources, freshness, history, *, max_candidates=3, max_accepted=1, focus_quote=None):
     source_map = {s['source_id']: s for s in sources}
     if not sources:
         return [], []
@@ -89,14 +98,50 @@ of this exact event. Do not add today's year unless explicitly in the source.
 Do not repeat events in the supplied history. A new development about the same
 company is allowed. An email receipt date proves receipt, not event novelty.
 '''
-    result = ask(client, fallback, Candidates, prompt, {'window_start': freshness.start.isoformat(), 'window_end_exclusive': freshness.end.isoformat(), 'sources': sources, 'previously_covered': history})
+    data = {'window_start': freshness.start.isoformat(), 'window_end_exclusive': freshness.end.isoformat(), 'sources': sources, 'previously_covered': history}
+    if focus_quote is not None:
+        # Only a verbatim public-source excerpt may steer a public verification query.
+        if focus_quote and not any(quote_in(focus_quote, x.get('article') or x.get('body', '')) for x in sources):
+            return [], [{'accepted': False, 'reason': 'invalid_focus_quote'}]
+        data['intended_development_quote'] = focus_quote
+        prompt += ('\nExplain your selection or why no candidate qualifies in reason. '
+                   'When an intended_development_quote is given, assess THAT development, '
+                   'not another item in a roundup. Return no candidate with an explicit reason '
+                   'if that specific development cannot qualify. Copy a short exact quote.')
+    result = ask(client, fallback, Selection if focus_quote is not None else Candidates, prompt, data)
     accepted, audit = [], []
+    if focus_quote is not None:
+        audit.append({'accepted': False, 'reason': 'candidate_selection',
+                      'detail': result.reason, 'candidate_count': len(result.news_items)})
+        if not result.news_items:
+            # One second look makes silent or accidental empty selections recoverable.
+            result = ask(client, fallback, Selection,
+                prompt + '\nRecheck the empty selection once. Find an overlooked qualifying '
+                'development if evidence supports it; otherwise explain the concrete exclusion. '
+                'Do not weaken freshness or topic requirements.',
+                {**data, 'previous_selection_reason': result.reason})
+            audit.append({'accepted': False, 'reason': 'selection_recheck',
+                          'detail': result.reason, 'candidate_count': len(result.news_items)})
     seen = set()
     for candidate in result.news_items[:max_candidates]:
         source = source_map.get(candidate.source_id)
-        if not source or candidate.source_id in seen or not quote_in(candidate.evidence_quote, source.get('article') or source.get('body', '')):
-            audit.append({'candidate': candidate.model_dump(), 'accepted': False, 'reason': 'invalid_source_or_quote'})
+        if not source or candidate.source_id in seen:
+            audit.append({'candidate': candidate.model_dump(), 'accepted': False, 'reason': 'invalid_source'})
             continue
+        if not quote_in(candidate.evidence_quote, source.get('article') or source.get('body', '')):
+            if focus_quote is not None:
+                repair = ask(client, fallback, QuoteRepair,
+                    'Repair only the evidence quotation. Copy a SHORT VERBATIM passage from '
+                    'the source that supports the same candidate development. Do not paraphrase, '
+                    'join distant passages, change the event, or invent support. Return an empty '
+                    'quote with a reason if no passage supports it.',
+                    {'candidate': candidate.model_dump(), 'source': source})
+                audit.append({'accepted': False, 'reason': 'quote_repair', 'detail': repair.reason,
+                              'source_id': candidate.source_id})
+                candidate = candidate.model_copy(update={'evidence_quote': repair.quote})
+            if not quote_in(candidate.evidence_quote, source.get('article') or source.get('body', '')):
+                audit.append({'candidate': candidate.model_dump(), 'accepted': False, 'reason': 'invalid_source_or_quote'})
+                continue
         seen.add(candidate.source_id)
         evidence = dict(source_map)
         discovered = []
@@ -122,6 +167,8 @@ company is allowed. An email receipt date proves receipt, not event novelty.
             continue
         verdicts = ask(client, fallback, Verdicts, '''
 You are the freshness editor. Assess ONLY the supplied candidate. Return one verdict.
+If intended_development_quote is supplied, reject any candidate that switches to
+a DIFFERENT development in the source, even if both share the same article.
 Does its CENTRAL news claim describe a genuinely new announcement within the window?
 Set topic_matches=true ONLY if it satisfies the supplied topic_requirements.
 Vegan Movement means farmed-animal advocacy, policy, or intervention effectiveness:
@@ -142,7 +189,7 @@ the date this development was first announced (YYYY-MM-DD), not the scrape date.
 Use a stable event_key including entity, event/round/version and announcement year.
 Reject repeats in history, even if written with different words or a different URL.
 When in doubt, accepted=false. Explain why. Never resolve conflicting evidence by guessing.
-''', {'window_start': freshness.start.isoformat(), 'window_end_exclusive': freshness.end.isoformat(), 'candidate': candidate.model_dump(), 'topic_requirements': section['prompt'], 'source': source, 'original_announcement_search': discovered, 'previously_covered': history})
+''', {'window_start': freshness.start.isoformat(), 'window_end_exclusive': freshness.end.isoformat(), 'candidate': candidate.model_dump(), 'intended_development_quote': focus_quote, 'topic_requirements': section['prompt'], 'source': source, 'original_announcement_search': discovered, 'previously_covered': history})
         verdict = verdicts.verdicts[0] if len(verdicts.verdicts) == 1 else None
         ok = bool(verdict and validate_verdict(verdict, candidate, evidence, freshness.start, freshness.end))
         if verdict and any(verdict.event_key.casefold() == x.get('event_key', '').casefold() for x in history):

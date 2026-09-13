@@ -76,10 +76,13 @@ def render_content(edition, developments, images=None, *, placeholders=False):
         pieces.append('</div></div>')
     if edition.closing:
         pieces.append(f'<p>{escape(edition.closing)}</p>')
-    for chart in edition.charts:
-        if chart.key in images or placeholders:
-            pieces.append(f'<div class="chart-item"><h3>{CHART_TITLES[chart.key]}</h3>'
-                          f'<img src="cid:{chart.key}" alt="{CHART_TITLES[chart.key]}"></div>')
+    charts = [key for key in CHART_TITLES if key in images or placeholders]
+    if charts:
+        pieces.append('<div class="financial-section"><h2>Markets and prices</h2>')
+        for key in charts:
+            pieces.append(f'<div class="chart-item"><h3>{CHART_TITLES[key]}</h3>'
+                          f'<img style="width:100%;height:auto" src="cid:{key}" alt="{CHART_TITLES[key]}"></div>')
+        pieces.append('</div>')
     return '\n'.join(pieces)
 
 

@@ -202,11 +202,10 @@ report them. Attribute organizational claims; do not call an intervention cheap,
 effective or replicable unless the supplied evidence establishes that conclusion.
 Use reporting or analysis paragraph kinds. Labels are optional and should be useful.
 Explain why each unselected verified development was omitted in omissions (private audit).
-Illustrations are optional, at most max_images: only request one when it adds value,
-avoid depictions implying actual news photography, and describe a conceptual illustration.
-Charts are optional, at most max_charts: use only when a selected development warrants
-one of the available market series, give its development_id and reason. Chart data will
-be generated separately; do not invent prices, returns, or patterns absent from evidence.
+Provide a conceptual AI illustration description and concise caption for EVERY story,
+up to max_images. Do not imply actual news photography or invent event details.
+The regular five market charts are added separately; leave charts empty. Do not
+invent prices, returns, or trends. Their headings count toward the word budget.
 If feedback is provided, repair the cited problems while retaining sound reporting.
 '''
     for attempt in range(policy.max_repairs + 1):
@@ -229,6 +228,14 @@ If feedback is provided, repair the cited problems while retaining sound reporti
                 {'brief': policy.model_dump(), 'window_start': freshness.start.isoformat(),
                  'window_end': freshness.end.isoformat(), 'developments': evidence_context(available),
                  'previous_draft': previous, 'feedback': feedback})
+        # Visuals are part of the product, not an editorial opt-out. A neutral
+        # conceptual fallback avoids a missing prompt silently dropping a story image.
+        for story in edition.stories:
+            if not story.image_description:
+                story.image_description = ('Create an editorial conceptual illustration of this topic: '
+                    + story.headline + '. Symbolic composition, no text, logos, identifiable people, '
+                    'or reconstruction of a real event. Clearly illustrative rather than documentary.')
+                story.image_caption = 'Conceptual illustration.'
         try:
             selected = validate_edition(edition, available, freshness, policy)
         except ValueError as exc:

@@ -42,20 +42,25 @@ scopes, and budgets. Defaults:
 | --- | --- |
 | Target length | About 650 words; shorter when warranted |
 | Hard length ceiling | 800 words, including attribution and captions |
-| Editor actions | 20 |
+| Editor actions | 32 |
 | Adaptive public searches | 4 |
 | Candidate verifications | 10 |
-| Research deadline | 600 seconds, checked between actions |
+| Research deadline | 900 seconds, checked between actions |
 | Draft repair attempts | 2 |
-| Illustrations / charts | At most 1 each, optional |
+| Coverage recovery | Independent review plus up to 3 additional verifications |
+| Illustrations / charts | An illustration per story (up to 8); all 5 regular charts |
 
 Initial collection and original-announcement verification searches are additional
 bounded operations. In-flight calls and retries may outlast the research deadline.
 Audits record actual text-model token counts; action budgets are not dollar caps.
 
 Illustrations are clearly labeled and must not imply actual event photography.
-Charts must relate to selected news; failed or stale media is omitted. There is no
-automatic market-chart footer.
+The regular footer includes Beyond Meat stock and bond, Oatly, S&P 500, and egg prices.
+Failed or stale media is omitted and logged. Each story receives an illustration prompt.
+Verification preserves an exact source quote identifying the intended development,
+repairs malformed candidate quotes once, and rechecks empty selections with a reason.
+A separate coverage review can recover up to three missed candidates before writing.
+Cached rejections exclude an event, not every development in the same roundup.
 
 ## Freshness and privacy
 

@@ -199,6 +199,7 @@ class Research(unittest.TestCase):
     def setUp(self):
         self.policy = load_policy()
         self.fresh = Freshness(START, END)
+        self.policy.coverage_followups = 0
 
     def test_private_research_request_blocked_and_budget_enforced(self):
         self.policy.max_actions = 2
@@ -258,7 +259,7 @@ class Research(unittest.TestCase):
         with patch('editor.research.ask', side_effect=actions), patch('editor.research.select_verified', return_value=([], [])) as verify:
             research_developments(None, None, {'AI': [source('a'), source('b')]}, self.fresh, [], self.policy)
         self.assertEqual(verify.call_count, 1)
-        with patch('editor.research.time.monotonic', side_effect=[0, 601, 602]), patch('editor.research.ask') as ask:
+        with patch('editor.research.time.monotonic', side_effect=[0, 901, 902]), patch('editor.research.ask') as ask:
             research_developments(None, None, {}, Freshness(START, END), [], self.policy)
         ask.assert_not_called()
 
@@ -299,22 +300,21 @@ class Runtime(unittest.TestCase):
         self.assertIn('Göttingen: €2.6 million', call.call_args.args[1][1]['content'])
         self.assertNotIn('\\u20ac', call.call_args.args[1][1]['content'])
 
-    def test_unrequested_charts_never_generated_and_stale_chart_omitted(self):
+    def test_regular_charts_generated_and_stale_chart_omitted(self):
         from editor.runtime import generate_media
+        from editor.rendering import CHART_TITLES
         import os
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            with patch('main.generate_images', return_value={}), patch('charts.create_charts') as charts, patch('charts.get_beyond_meat_bond_chart'), patch('charts.extract_egg_price_chart'):
+            paths = {k + '.png': str(root / (k + '.png')) for k in CHART_TITLES}
+            for path in paths.values():
+                Path(path).write_bytes(b'old')
+                os.utime(path, (1, 1))
+            with patch('main.generate_images', return_value={}), patch('charts.create_charts') as charts, patch('charts.get_beyond_meat_bond_chart') as bond, patch('charts.extract_egg_price_chart') as egg, patch('editor.runtime.CHART_PATHS', paths):
                 self.assertEqual(generate_media(None, edition(), root), {})
-                charts.assert_not_called()
-                stale = root / 'stale.png'
-                stale.write_bytes(b'old')
-                os.utime(stale, (1, 1))
-                draft = edition()
-                draft.charts = [Chart(key='bynd-chart', development_id='a', reason='Financial news')]
-                with patch('editor.runtime.CHART_PATHS', {'bynd-chart.png': str(stale)}):
-                    self.assertEqual(generate_media(None, draft, root), {})
                 charts.assert_called_once()
+                bond.assert_called_once()
+                egg.assert_called_once()
 
     def test_editor_models_use_native_json_schema_and_keep_local_constraints(self):
         from types import SimpleNamespace

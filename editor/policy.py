@@ -15,13 +15,14 @@ class Policy(StrictModel):
     topics: dict[str, str]
     target_words: int = Field(default=650, ge=100, le=800)
     max_words: int = Field(default=800, ge=100, le=800)
-    max_actions: int = Field(default=20, ge=1, le=40)
+    max_actions: int = Field(default=32, ge=1, le=40)
     max_searches: int = Field(default=4, ge=0, le=8)
+    coverage_followups: int = Field(default=3, ge=0, le=3)
     max_verifications: int = Field(default=10, ge=1, le=20)
-    research_seconds: int = Field(default=600, ge=1, le=1800)
+    research_seconds: int = Field(default=900, ge=1, le=1800)
     max_repairs: int = Field(default=2, ge=0, le=3)
-    max_images: int = Field(default=1, ge=0, le=2)
-    max_charts: int = Field(default=1, ge=0, le=2)
+    max_images: int = Field(default=8, ge=0, le=12)
+    max_charts: int = Field(default=5, ge=0, le=5)
 
 
 def load_policy(path=None):

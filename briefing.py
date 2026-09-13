@@ -53,7 +53,7 @@ def remember_rejections(decisions, start, end):
                 'window_start': start.isoformat(), 'window_end': end.isoformat(),
                 'status': 'previously_rejected_do_not_reintroduce_in_this_window',
             })
-    unique = {(r['source_id'], r['window_start'], r['window_end']): r for r in rejected}
+    unique = {(r['source_id'], r.get('event_key', ''), r['window_start'], r['window_end']): r for r in rejected}
     save_json(path, list(unique.values())[-1000:])
 
 

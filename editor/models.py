@@ -12,6 +12,7 @@ class Action(StrictModel):
     source_id: str = ''
     topic: Literal['Alternative Protein', 'Vegan Movement', 'AI'] = 'AI'
     reason: str = Field(max_length=1200)
+    focus_quote: str = ''
 
 
 class PublicQuery(StrictModel):
@@ -83,3 +84,9 @@ class Repairs(StrictModel):
     paragraphs: list[ParagraphEdit] = Field(default_factory=list)
     remove_images: list[int] = Field(default_factory=list)
     remove_charts: list[str] = Field(default_factory=list)
+
+
+class CoverageReview(StrictModel):
+    adequate: bool
+    reason: str
+    followups: list[Action] = Field(default_factory=list, max_length=3)

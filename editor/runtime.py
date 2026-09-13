@@ -9,14 +9,14 @@ from config import CHART_PATHS, AI_MODEL
 from utils.api_utils import TEXT_USAGE
 from .composition import compose_edition, EditionReviewError
 from .research import research_developments
-from .rendering import render_edition
+from .rendering import render_edition, CHART_TITLES
 
 
 def generate_media(client, edition, directory):
     from main import generate_images
     from charts import create_charts, get_beyond_meat_bond_chart, extract_egg_price_chart
     generated = generate_images(client, edition)
-    chosen = {c.key for c in edition.charts}
+    chosen = set(CHART_TITLES)
     started = time.time_ns()
     jobs = []
     if chosen & {'bynd-chart', 'otly-chart', 'sp500-chart'}:
