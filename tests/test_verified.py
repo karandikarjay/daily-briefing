@@ -176,7 +176,7 @@ class ModelAndDelivery(unittest.TestCase):
             root = Path(tmp)
             template = root / 'template.html'
             template.write_text('<html><body>{newsletter_content}</body></html>')
-            with patch('sys.argv', ['main.py', '--dry-run']), patch('briefing.ROOT', root), patch('briefing.STATE', root / 'state'), patch('briefing.TEMPLATE_PATH', str(template)), patch('briefing.setup_logging', return_value=(MagicMock(), MagicMock())), patch('briefing.get_content', return_value=[]), patch('briefing.get_tavily_content', return_value=[]), patch('briefing.Anthropic'), patch('briefing.OpenAI'), patch('main.generate_images', return_value={}), patch('charts.create_charts'), patch('charts.get_beyond_meat_bond_chart'), patch('charts.extract_egg_price_chart'), patch('briefing.send_email') as send:
+            with patch('sys.argv', ['main.py', '--dry-run', '--pipeline', 'legacy']), patch('briefing.ROOT', root), patch('briefing.STATE', root / 'state'), patch('briefing.TEMPLATE_PATH', str(template)), patch('briefing.setup_logging', return_value=(MagicMock(), MagicMock())), patch('briefing.get_content', return_value=[]), patch('briefing.get_tavily_content', return_value=[]), patch('briefing.Anthropic'), patch('briefing.OpenAI'), patch('main.generate_images', return_value={}), patch('charts.create_charts'), patch('charts.get_beyond_meat_bond_chart'), patch('charts.extract_egg_price_chart'), patch('briefing.send_email') as send:
                 briefing.run()
                 send.assert_not_called()
                 previews = list((root / 'previews').glob('*/newsletter.html'))

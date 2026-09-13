@@ -22,6 +22,9 @@ from config import (
     TEXT_FALLBACK_MODEL, CLAUDE_EFFORT
 )
 
+TEXT_USAGE = []
+
+
 def num_tokens_from_string(string: str, model: str = "claude-opus-4-5-20251101") -> int:
     """
     Returns an approximate number of tokens in a text string.
@@ -273,6 +276,14 @@ def call_claude_parse_with_backoff(
     if total_tokens > MAX_TOKENS_PER_REQUEST:
         logging.warning(f"Request too large ({total_tokens} tokens). This may exceed limits.")
 
+    # New editorial models use constrained JSON, not prompt-only tool transcripts.
+    # SDK transformation removes unsupported schema constraints; Pydantic below
+    # still validates the original constraints. Legacy models retain their API path.
+    output_config = {"effort": CLAUDE_EFFORT}
+    if response_model.model_config.get("extra") == "forbid":
+        from anthropic import transform_schema
+        output_config["format"] = {"type": "json_schema", "schema": transform_schema(response_model)}
+
     # Make the API call
     def api_call():
         return client.messages.create(
@@ -280,7 +291,7 @@ def call_claude_parse_with_backoff(
             max_tokens=max_tokens,
             system=system_prompt,
             messages=claude_messages,
-            output_config={"effort": CLAUDE_EFFORT},
+            output_config=output_config,
         )
 
     response = call_api_with_backoff(
@@ -294,6 +305,7 @@ def call_claude_parse_with_backoff(
     response_text = "".join(block.text for block in response.content if block.type == "text")
     if not response_text.strip():
         raise ValueError("Claude returned no text blocks")
+    TEXT_USAGE.append({"model": model, "input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens})
     logging.info("LLM usage model=%s input=%s output=%s", model, response.usage.input_tokens, response.usage.output_tokens)
 
     # Clean up the response - remove markdown code blocks if present
@@ -361,15 +373,20 @@ def call_openai_parse_with_backoff(
             logging.warning("Claude generation failed (%s); using OpenAI fallback %s", type(exc).__name__, fallback_model)
     if fallback_client is None:
         raise RuntimeError('Claude unavailable and no fallback configured')
+    return call_openai_structured(fallback_client, messages, response_model, fallback_model)
 
+
+def call_openai_structured(client, messages, response_model, model=TEXT_FALLBACK_MODEL):
+    """Shared structured API path for fallback writing and independent review."""
     def api_call():
-        return fallback_client.beta.chat.completions.parse(
-            model=fallback_model, messages=messages, response_format=response_model
+        return client.beta.chat.completions.parse(
+            model=model, messages=messages, response_format=response_model
         )
-    response = call_api_with_backoff(api_call=api_call, resource_type="OpenAI fallback completions")
+    response = call_api_with_backoff(api_call=api_call, resource_type="OpenAI structured completions")
     usage = getattr(response, 'usage', None)
     if usage:
-        logging.info("LLM usage model=%s input=%s output=%s", fallback_model, usage.prompt_tokens, usage.completion_tokens)
+        TEXT_USAGE.append({"model": model, "input_tokens": usage.prompt_tokens, "output_tokens": usage.completion_tokens})
+        logging.info("LLM usage model=%s input=%s output=%s", model, usage.prompt_tokens, usage.completion_tokens)
     return response
 
 from functools import lru_cache

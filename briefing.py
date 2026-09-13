@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 from anthropic import Anthropic
 from openai import OpenAI
-from config import ANTHROPIC_API_KEY, OPENAI_API_KEY, AI_MODEL, TEXT_FALLBACK_MODEL, SECTIONS, TEMPLATE_PATH, TIMEZONE, GOOGLE_USERNAME
+from config import ANTHROPIC_API_KEY, OPENAI_API_KEY, AI_MODEL, TEXT_FALLBACK_MODEL, SECTIONS, TEMPLATE_PATH, TIMEZONE, GOOGLE_USERNAME, EDITORIAL_POLICY, BRIEFING_PIPELINE
 from content import get_content
 from content.ranking import selection_sources
 from content.tavily_content import get_tavily_content
@@ -186,6 +186,11 @@ def compose_with_replacements(client, fallback, sources_by_topic, freshness, his
 
 def deliver(directory, everyone=False):
     payload = json.loads((directory / 'delivery.json').read_text())
+    if payload.get('replay_only'):
+        raise ValueError('Frozen-evidence comparisons cannot be sent')
+    for key, expected in payload.get('image_sha256', {}).items():
+        if hashlib.sha256(Path(payload['images'][key]).read_bytes()).hexdigest() != expected:
+            raise ValueError('Preview image changed since validation; regenerate before sending')
     newsletter = (directory / 'newsletter.html').read_bytes().decode('utf-8')
     if hashlib.sha256(newsletter.encode()).hexdigest() != payload['html_sha256']:
         raise ValueError('Preview changed since validation; regenerate before sending')
@@ -214,7 +219,15 @@ def run():
     modes.add_argument('--dry-run', action='store_true', help='Save a complete preview; never send email')
     modes.add_argument('--send-to-everyone', action='store_true', help='Production group delivery')
     modes.add_argument('--send-preview', type=Path, help='Send a previously validated preview only to the sender')
+    parser.add_argument('--pipeline', choices=['editor', 'legacy'], default=BRIEFING_PIPELINE,
+                        help='Editorial pipeline (default: editor); legacy is available for rollback')
+    parser.add_argument('--replay-evidence', type=Path,
+                        help='Recompose a frozen developments.json; requires --dry-run and editor pipeline')
     args = parser.parse_args()
+    if args.pipeline not in ('editor', 'legacy'):
+        parser.error('BRIEFING_PIPELINE must be editor or legacy')
+    if args.replay_evidence and (not args.dry_run or args.pipeline != 'editor'):
+        parser.error('--replay-evidence requires --dry-run --pipeline editor')
     STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (STATE / 'run.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -225,15 +238,34 @@ def run():
         from main import generate_cohesive_newsletter, generate_images
         from charts import create_charts, extract_egg_price_chart, get_beyond_meat_bond_chart
         start, end = get_content_collection_timeframe()
+        replay = None
+        if args.replay_evidence:
+            replay = json.loads(args.replay_evidence.read_text())
+            start = datetime.fromisoformat(replay['window_start'])
+            end = datetime.fromisoformat(replay['window_end_exclusive'])
+            if start.tzinfo is None or end.tzinfo is None or start >= end:
+                raise ValueError('Invalid frozen reporting window')
         freshness = Freshness(start, end)
         client = Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0)
         fallback = OpenAI(api_key=OPENAI_API_KEY, max_retries=0)
         logging.info('Verified briefing window [%s, %s); primary=%s fallback=%s', start, end, AI_MODEL, TEXT_FALLBACK_MODEL)
         history = load_history(include_rejections=True, replay_edition=not args.send_to_everyone)
         sources_by_topic = {}
-        for section in SECTIONS:
+        if replay is not None:
+            history = replay.get('history', [])
+        for section in (SECTIONS if replay is None else []):
             sources_by_topic[section['title']] = freshness.filter(
                 get_content(section['title'], audit=freshness.pipeline_audit), topic=section['title'])
+        if args.pipeline == 'editor':
+            from editor.runtime import make_preview
+            directory = ROOT / 'previews' / datetime.now(TIMEZONE).strftime('%Y%m%d-%H%M%S-%f')
+            decisions = make_preview(client, fallback, sources_by_topic, freshness, history,
+                EDITORIAL_POLICY, directory, Path(TEMPLATE_PATH).read_text(),
+                replay=replay['developments'] if replay is not None else None)
+            logging.info('Validated editorial preview saved to %s', directory)
+            if not args.dry_run:
+                deliver(directory, everyone=args.send_to_everyone)
+            return
         newsletter, selected, decisions, review = compose_with_replacements(
             client, fallback, sources_by_topic, freshness, history,
             lambda c, f, items: generate_cohesive_newsletter(c, f, items, prompt_logger),

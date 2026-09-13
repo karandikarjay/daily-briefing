@@ -69,6 +69,9 @@ def send_email(html_content: str, subject: str = None, send_to_everyone: bool = 
         
         # Attach chart images
         for image_path, content_id in CHART_CONTENT_IDS.items():
+            key = content_id.strip('<>')
+            if f'cid:{key}' not in html_content or key in (additional_images or {}):
+                continue
             full_path = CHART_PATHS.get(image_path)
             if full_path and os.path.exists(full_path):
                 with open(full_path, 'rb') as img_file:

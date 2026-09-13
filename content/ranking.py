@@ -15,7 +15,7 @@ def selection_sources(client, fallback, section, sources, audit, attempt, budget
     if num_tokens_from_string(json.dumps(sources)) > budget:
         from .verification import ask
         cards = [{k: (s.get(k) or '')[:300] for k in ('source_id', 'title', 'subject', 'source_name', 'published_at', 'source_type')}
-                 | {'excerpt': (s.get('article') or s.get('body', ''))[:1800]} for s in sources]
+                 | {'excerpt': (s.get('article') or s.get('body') or s.get('excerpt', ''))[:1800]} for s in sources]
         # Bound ranking prompts as well as selection prompts. Every source gets
         # considered; a long article cannot evict another before relevance review.
         def batches_for(cards):
@@ -33,7 +33,7 @@ def selection_sources(client, fallback, section, sources, audit, attempt, budget
             result = ask(client, fallback, SourceRanking,
                 'Rank ALL supplied source_ids by relevance and importance to the topic requirements, best first. '
                 'Use the title and compact excerpt; these are discovery summaries, not verified announcements. '
-                'Prefer concrete commercial developments over generic market reports and unrelated coverage. '
+                'Prioritize consequential developments according to the supplied editorial requirements. '
                 'Include every ID exactly once. Do not invent IDs.',
                 {'topic_requirements': section['prompt'], 'sources': cards})
             expected = {c['source_id'] for c in cards}

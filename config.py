@@ -104,44 +104,15 @@ COMMON_PROMPT_ELEMENTS = (
 )
 
 # Section definitions for the daily briefing
+# Collection interests are independent of visible newsletter sections.
+from editor.policy import load_policy
+EDITORIAL_POLICY = load_policy()
 SECTIONS = [
-    {
-        "title": "Alternative Protein",
-        "prompt": (
-            f"You are an analyst specializing in the alternative protein industry. {COMMON_PROMPT_ELEMENTS} "
-            "IMPORTANT: Only include stories that are DIRECTLY about alternative protein — that is, about companies, products, or markets "
-            "in plant-based, cultivated, or fermentation-derived protein. Stories about conventional animal agriculture (e.g. livestock production, "
-            "hog breeding, poultry farming) are NOT alternative protein stories, even if they have indirect implications for the alt-protein industry. "
-            "Prioritize: (1) market and consumer trends — retail launches, restaurant partnerships, consumer adoption data, market share shifts; "
-            "(2) investment signals — funding rounds, M&A, IPOs, earnings, and company financials across all stages from seed to public. "
-            "De-prioritize pure science/R&D unless it has near-term commercial implications."
-        ),
-        "content_type": "articles"
-    },
-    {
-        "title": "Vegan Movement",
-        "prompt": (
-            f"You are an analyst specializing in farmed animal advocacy. {COMMON_PROMPT_ELEMENTS} "
-            "Prioritize: (1) organizational effectiveness — which groups are achieving measurable results, strategic pivots, leadership changes, and lessons learned; "
-            "(2) research and data — new studies on intervention effectiveness, public opinion shifts, and movement strategy. "
-            "The reader is a philanthropist deciding where to direct donations, so focus on what helps evaluate which organizations and approaches are working. "
-            "Scope is farmed animals only — skip wildlife, companion animal, and non-farmed-animal stories. "
-            "Note that Farmed Animal Strategic Team (FAST) is not the name of an organization, but simply the name of an email list where people in the farmed animal movement share updates."
-        ),
-        "content_type": "emails"
-    },
-    {
-        "title": "AI",
-        "prompt": (
-            f"You are an analyst specializing in practical AI tools. {COMMON_PROMPT_ELEMENTS} "
-            "Focus exclusively on AI tools and features the reader can use right now. "
-            "The reader's workflow includes: research and analysis, writing and communications, coding and automation, and general productivity. "
-            "Prioritize new tool launches, major feature updates, and practical how-to insights. "
-            "Skip industry fundraising news, corporate strategy, AI policy/safety debates, and research papers unless they resulted in a usable product."
-        ),
-        "content_type": "articles"
-    }
+    {"title": topic, "prompt": requirements,
+     "content_type": "emails" if topic == "Vegan Movement" else "articles"}
+    for topic, requirements in EDITORIAL_POLICY.topics.items()
 ]
+BRIEFING_PIPELINE = os.getenv("BRIEFING_PIPELINE", "editor")
 
 # Timezone settings
 TIMEZONE = ZoneInfo("America/New_York")
@@ -178,9 +149,9 @@ TAVILY_QUERIES = {
         "Compassion in World Farming corporate pledge progress",
     ],
     "AI": [
-        "new AI tool app launch productivity automation",
+        "artificial intelligence major news research industry policy security incident",
         "AI writing coding assistant new feature update",
-        "AI workflow automation tool release",
+        "AI research breakthrough regulation safety open source model major incident",
     ],
 }
 # A bounded second discovery pass for topics still empty after review.

@@ -1,231 +1,159 @@
 # Future Appetite
 
-A Python application that automatically generates and delivers a personalized daily briefing email newsletter with curated content from various sources including news sites, RSS feeds, emails, and financial data.
+An Axios-style briefing for Jay and other people in the vegan movement. It covers
+consequential new developments in farmed-animal advocacy, alternative protein,
+and AI broadly, explaining what changed and why it matters in five minutes or less.
 
-## Overview
+An AI editor allocates space freely across these interests. There are no topic
+quotas, fixed section order, or minimum number of stories. The writing is concise,
+professional, engaging, and grounded in evidence.
 
-Future Appetite collects content from multiple sources, processes it using AI to extract the most relevant information, generates photorealistic images and financial charts, and sends a formatted Axios-style email newsletter. The application is designed to provide a comprehensive overview of various topics including:
+## Architecture
 
-- Alternative Protein
-- Vegan Movement
-- AI
+1. **Collect:** RSS, publisher sitemaps, FAST emails, and seeded public searches
+   produce a shared pool. Publisher publication evidence must fall within the
+   reporting window; search timestamps and sitemap updates do not prove novelty.
+2. **Investigate:** An editor chooses structured `inspect`, `research`, `verify`,
+   and `finish` actions. It compares compact cards and loads full evidence on demand.
+3. **Verify:** Candidates undergo an unrestricted original-announcement search
+   and evidence-grounded novelty review. Private emails use a separate path without
+   public search. Development records retain dated supporting and conflicting evidence.
+4. **Compose:** The writer chooses the lead, ordering, depth, paragraph labels,
+   and implications. Paragraphs reference exact supporting source quotations.
+   Omission rationales remain in the private audit.
+5. **Review:** Native JSON schemas constrain editor responses. Code checks IDs, quotations, dates, repeated events, omissions,
+   word count, and media limits. GPT-5.6 Sol separately reviews the complete edition,
+   including subject, intro, comparisons, and conclusions. Bounded repairs correct
+   specific fields/paragraphs without changing untouched copy, or remove invalid
+   developments; unresolved failures abort.
+6. **Render and deliver:** Controlled HTML components escape model text and
+   construct citations from stored evidence. Optional media is archived with the
+   preview. Delivery checks checksums and prevents blind duplicate sends.
 
-## Features
+The editor has no SMTP tool. Analysis must distinguish interpretation from reported
+findings and avoid overstating causality, certainty, or transferability.
 
-- **Content Aggregation**: Collects content from multiple sources including:
-  - RSS feeds (Vegconomist, The Rundown AI)
-  - Website sitemaps (Green Queen)
-  - Email lists (FAST)
+## Editorial configuration
 
-- **AI-Powered Content Processing**: Uses Claude Opus 5 (Anthropic) to:
-  - Extract the most important news items from each source
-  - Select the top 3 stories across all topics
-  - Generate an Axios-style newsletter with Smart Brevity principles
-  - Create scannable content with "What", "Why it matters", and "Go deeper" sections
+`editorial.json` contains audience, purpose, voice, selection principles, topic
+scopes, and budgets. Defaults:
 
-- **AI Image Generation**: Uses OpenAI's gpt-image-2.5-sunburst to generate photorealistic images for each story
+| Setting | Default |
+| --- | --- |
+| Target length | About 650 words; shorter when warranted |
+| Hard length ceiling | 800 words, including attribution and captions |
+| Editor actions | 20 |
+| Adaptive public searches | 4 |
+| Candidate verifications | 10 |
+| Research deadline | 600 seconds, checked between actions |
+| Draft repair attempts | 2 |
+| Illustrations / charts | At most 1 each, optional |
 
-- **Financial Charts**: Generates visual charts for financial data including:
-  - Beyond Meat (BYND) stock price
-  - Beyond Meat bond price
-  - Oatly (OTLY) stock price
-  - S&P 500
-  - USDA egg prices
+Initial collection and original-announcement verification searches are additional
+bounded operations. In-flight calls and retries may outlast the research deadline.
+Audits record actual text-model token counts; action budgets are not dollar caps.
 
-- **Email Delivery**: Sends a formatted HTML email with:
-  - Clean, minimal Axios-style design
-  - Up to 3 verified stories with photorealistic AI-generated images
-  - Embedded financial charts
-  - Links to original sources
-  - Option to send to a single recipient or a distribution list
+Illustrations are clearly labeled and must not imply actual event photography.
+Charts must relate to selected news; failed or stale media is omitted. There is no
+automatic market-chart footer.
 
-## Project Structure
+## Freshness and privacy
 
-```
-daily-briefing/
-├── charts/                  # Financial chart generation
-│   ├── __init__.py
-│   └── financial_charts.py
-├── content/                 # Content retrieval from various sources
-│   ├── __init__.py
-│   ├── content_manager.py
-│   ├── email_content.py
-│   ├── rss_content.py
-│   ├── sitemap_content.py
-│   └── web_content.py
-├── models/                  # Data models for structured content
-│   ├── __init__.py
-│   └── data_models.py
-├── utils/                   # Utility functions
-│   ├── __init__.py
-│   ├── api_utils.py
-│   ├── html_utils.py
-│   ├── email_utils.py
-│   └── logging_setup.py
-├── config.py                # Configuration settings
-├── main.py                  # Main application entry point
-├── template.html            # Email template
-└── README.md                # This file
-```
+Every story must be anchored in a new development within the latest completed
+weekday window ending at 6 a.m. America/New_York. Tuesday–Friday windows begin at
+6 a.m. the previous day; Monday begins at 6 a.m. Friday. Weekend and early runs
+reuse the latest completed scheduled window. Start is inclusive; end is exclusive.
 
-## Requirements
+Older material is explicitly dated context, never a standalone item. A newly
+released evaluation of an older intervention may qualify; an old evaluation
+discovered today cannot. Unknown/conflicting dates and post-cutoff evidence are excluded.
 
-- Python 3.9+
-- Anthropic API key (for Claude Opus 5 text generation)
-- OpenAI API key (for gpt-image-2.5-sunburst image generation)
-- Gmail account (for sending emails)
-- Required Python packages (see requirements.txt)
+Public-query generation is isolated from private emails, editor rationales, and
+private history. Only a public source or an enumerated topic can seed adaptive
+research. Source documents are untrusted data, never instructions.
 
-## Installation
+Exact quotation matching and model review reduce errors but cannot guarantee
+truth or editorial usefulness. Retained evidence supports investigation of mistakes.
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/daily-briefing.git
-   cd daily-briefing
-   ```
+## Setup
 
-2. Install required packages:
-   ```
-   pip install -r requirements.txt
-   ```
+Use the Python environment provisioned for the checkout. Dependencies are in
+`requirements.txt`; Python 3.10+ is required by the type syntax.
 
-3. Create a `.env` file with the following variables:
-   ```
-   ANTHROPIC_API_KEY=your_anthropic_api_key
-   OPENAI_API_KEY=your_openai_api_key
-   GOOGLE_USERNAME=your_gmail_address
-   GOOGLE_PASSWORD=your_gmail_app_password
-   RECIPIENT_EMAILS=email1@example.com,email2@example.com
-   ```
+Configure `.env` in the checkout:
 
-   Note: For Gmail, you'll need to use an App Password rather than your regular password. See [Google's documentation](https://support.google.com/accounts/answer/185833) for details.
+- `ANTHROPIC_API_KEY`: primary text generation and verification.
+- `OPENAI_API_KEY`: text fallback and optional images.
+- `TAVILY_API_KEY`: discovery and original-announcement verification.
+- `GOOGLE_USERNAME` / `GOOGLE_PASSWORD`: Gmail account and app password.
+- `RECIPIENT_EMAILS`: production recipient list.
 
-## Usage
+`.env` overrides existing environment values. Optional overrides: `AI_MODEL`,
+`BRIEFING_STATE_DIR` (default `state/`), and `BRIEFING_PIPELINE` (`editor` by default;
+`legacy` for rollback). `--pipeline` overrides that last setting.
 
-### Basic Usage
+Text defaults to `claude-opus-5` with the existing `gpt-5.6-sol` fallback. Whole-edition review uses `gpt-5.6-sol`, separate from the default writer; if writing falls back to OpenAI, review remains a separate call. Optional
+images use `gpt-image-2.5-sunburst`, medium quality, 1536×1024 PNG.
 
-Run the script to generate and send the daily briefing to yourself:
+## Preview and test
 
-```
-python main.py
+Generate a complete preview without sending email:
+
+```bash
+python main.py --dry-run
 ```
 
-### Send to All Recipients
+A dry run calls external APIs and writes local preview/rejection state. It does
+not update production delivery history.
 
-To send the briefing to all email addresses in your RECIPIENT_EMAILS list:
+Run deterministic regression tests without external APIs or sending:
 
+```bash
+python -m unittest discover -s tests -v
 ```
-python main.py --send-to-everyone
+
+Ignored `previews/RUN/` directories contain frozen `research-input.json`, verified
+`developments.json`, structured `edition.json`, `audit.json`, `final-review.json`,
+`newsletter.html`, archived media, and `delivery.json`. Evidence, emails, logs,
+and credentials must not be committed.
+
+## Evaluate changes on identical evidence
+
+```bash
+python main.py --dry-run --replay-evidence /absolute/path/to/previews/RUN/developments.json
+python compare_previews.py /absolute/path/to/previews/A /absolute/path/to/previews/B
 ```
 
-## Configuration
+Replay uses the frozen reporting window, evidence, and history with the current
+editorial brief. It calls text models but performs no collection, search, live media
+generation, or history/rejection updates. Replay previews cannot be sent.
 
-The application is configured through the `config.py` file, which includes:
+The comparison command uses no APIs. It reports headlines, events, topics, word
+counts, review attempts, research budgets, omissions, and text usage. Human review
+should assess significance, important omissions, useful implications, factual
+support, repetition, voice, and reading experience. Replay tests writing/review;
+live previews also test discovery.
 
-- API keys and credentials
-- Email settings
-- Content source URLs
-- Section definitions
-- Chart styling options
-- Rate limiting parameters
+## Delivery and rollback
 
-## How It Works
+**`python main.py` sends a personal preview. It is not a no-send test.** Sending
+test email requires explicit approval. To send an approved saved preview:
 
-1. **Content Collection**: The application retrieves content from various sources defined in the configuration.
+```bash
+python main.py --send-preview /absolute/path/to/previews/RUN
+```
 
-2. **Content Processing**: For each section, the collected content is processed using Claude Opus 5 to extract the most important news items.
+Personal delivery uses the sender's `+list` address and a `[Preview]` subject prefix.
+`--send-to-everyone` is reserved for production, never development or testing.
 
-3. **Newsletter Generation**: Claude selects up to 3 verified stories and generates an Axios-style newsletter with Smart Brevity principles.
+Delivery checks HTML and editor-media hashes. Exclusive attempt markers prevent
+blind duplicate sends. If SMTP fails or its outcome is uncertain, inspect Sent
+before acting; never remove a marker and retry blindly.
 
-4. **Image Generation**: OpenAI's gpt-image-2.5-sunburst generates photorealistic images for each story.
+`state/history.json` records production deliveries. Personal previews do not change
+it. Same-window semantic rejections persist in `state/excluded-events.json`. A
+state-directory lock prevents concurrent runs.
 
-5. **Chart Generation**: Financial charts are created using matplotlib and yfinance data.
-
-6. **Email Generation**: An HTML email is generated using the template with the Axios-style content, images, and charts.
-
-7. **Email Delivery**: The email is sent to the specified recipients.
-
-## Content Collection Logic
-
-The application collects content based on the following time windows:
-
-- If today is Saturday, Sunday, or Monday: Content from 6am ET Friday to 6am ET today
-- For all other days: Content from 6am ET yesterday to 6am ET today
-
-This ensures that you get a comprehensive update after weekends while maintaining daily relevance during the work week.
-
-## Logging
-
-The application generates two log files:
-
-- `daily_briefing.log`: General application logs
-- `prompt_response.log`: Detailed logs of prompts sent to the AI and responses received
-
-## Extending the Application
-
-### Adding New Content Sources
-
-To add a new content source:
-
-1. Create a new function in the appropriate content module (e.g., `rss_content.py` for RSS feeds)
-2. Update the `content_manager.py` file to include your new source
-3. Add any necessary configuration to `config.py`
-
-### Adding New Sections
-
-To add a new section to the briefing:
-
-1. Add a new section definition to the `SECTIONS` list in `config.py`
-2. Update the email template (`template.html`) to include the new section
-3. Update the content manager to retrieve content for the new section
-
-## Acknowledgements
-
-- Anthropic for providing Claude Opus 5
-- OpenAI for providing gpt-image-2.5-sunburst image generation
-- yfinance for financial data
-- All the content sources that make this briefing possible
-
-## Verified news pipeline
-
-Text defaults to `claude-opus-5`, adaptive thinking with medium effort. The existing
-`gpt-5.6-sol` fallback is retained. Model usage is logged for cost measurement.
-
-All collectors share one frozen, half-open Eastern-time window: 06:00 yesterday
-to 06:00 today, with Monday covering Friday onward. Early/manual runs use the
-most recent completed scheduled window. Search recency and sitemap modification
-dates are discovery hints, never publication proof. Article metadata/RSS publication
-dates must agree and fall inside the window. Ambiguous dates are excluded.
-
-Up to three candidates per topic are considered in order. If selection or the final
-review leaves a topic empty, one more shortlist is tried, excluding already attempted
-sources (at most six candidates per topic). Valid stories are retained during refill. An unrestricted search
-looks for the original announcement and prior coverage. A grounded novelty review
-must confirm the central announcement is new; a date, source ID and exact supporting
-quote are retained. Unknown dates, recycled events, failed verification and repeated
-events are excluded. An independent final review checks the newsletter against its
-evidence. Empty topics use the same numbered section headings as populated topics and say
-that no story passed selection, without claiming there was no news. Visible source
-attribution shows the announcement date only; exact timestamps and the collection
-window remain in the private audit, not the email. API/writer failures abort
-instead of sending an error disguised as a successful briefing.
-
-`python main.py --dry-run` saves a full HTML/image preview without sending.
-`python main.py --send-preview /absolute/path/to/previews/RUN` sends that validated
-preview only to the configured sender's +list address. `python main.py` also sends
-only to that address. Only production cron uses `--send-to-everyone`.
-
-Private audit evidence and previews live in ignored `previews/`; delivered-event
-history lives in ignored `state/history.json`. Personal previews do not change group
-history. Personal previews can replay stories from the same edition; older editions
-and same-window freshness rejections remain excluded. Group runs exclude all
-previously delivered stories. Each preview has an exclusive send-attempt marker. If delivery is uncertain,
-inspect Sent before taking any further action; do not remove the marker and retry
-blindly. Tests: `python -m unittest discover -s tests -v`.
-
-Publication metadata can be wrong, and semantic verification is probabilistic.
-The deliberate tradeoff is to omit uncertain stories, sometimes producing a shorter
-edition, rather than treat discovery dates or a model's unsupported assertion as proof.
-
-Failed semantic verification is persisted in state/excluded-events.json for the
-same collection window. Retries cannot silently reintroduce rejected source IDs.
+`--pipeline legacy` or `BRIEFING_PIPELINE=legacy` retains the old three-section
+orchestration for operational rollback. Shared freshness and delivery safeguards
+apply to both pipelines. See `AGENTS.md` for production sync instructions.
