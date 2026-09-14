@@ -25,7 +25,11 @@ professional, engaging, and grounded in evidence.
    word count, and media limits. GPT-5.6 Sol separately reviews the complete edition,
    including subject, intro, comparisons, and conclusions. Bounded repairs correct
    specific fields/paragraphs without changing untouched copy, or remove invalid
-   developments; unresolved failures abort.
+   developments. Exhausted repairs trigger one shorter rewrite from verified evidence,
+   with prior feedback and the same review/repair checks. If that also fails review,
+   send a fixed service notice with no unapproved stories or media. The audit retains
+   the failed reviews and drafts; no stories are marked delivered. Writer/API errors
+   still abort.
 6. **Render and deliver:** Controlled HTML components escape model text and
    construct citations from stored evidence. Optional media is archived with the
    preview. Delivery checks checksums and prevents blind duplicate sends.

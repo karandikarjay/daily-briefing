@@ -50,6 +50,71 @@ def edition(*ids):
     return Edition(subject='New evidence on interventions', stories=[story(sid) for sid in (ids or ('a',))])
 
 
+class Recovery(unittest.TestCase):
+    def test_recovery_rewrites_with_all_feedback_and_excludes_rejected_events(self):
+        from editor.runtime import compose_with_recovery
+        from editor.composition import EditionReviewError
+        failed = EditionReviewError([
+            {'issues': ['Old event'], 'rejected_development_ids': ['a']},
+            {'issues': ['Attribute headline'], 'rejected_development_ids': []}], edition().model_dump())
+        with tempfile.TemporaryDirectory() as tmp, patch('editor.runtime.compose_edition', side_effect=[
+                failed, (edition('b'), [development('b')], {'approved': True, 'reviews': []})]) as compose:
+            result, selected, review = compose_with_recovery(None, None,
+                [development(), development('b')], Freshness(START, END), load_policy(), [], Path(tmp))
+            self.assertTrue((Path(tmp) / 'normal-rejected-draft.json').exists())
+        self.assertEqual([d['source_id'] for d in compose.call_args.args[2]], ['b'])
+        self.assertEqual(compose.call_args.kwargs['recovery_issues'], ['Old event', 'Attribute headline'])
+        self.assertEqual(compose.call_args.args[4].target_words, 400)
+        self.assertEqual(review['removed_developments'], ['a'])
+        self.assertTrue(review['approved'])
+        self.assertTrue(review['recovery_used'])
+        self.assertEqual(selected[0]['source_id'], 'b')
+
+    def test_persistent_rejection_delivers_only_notice_and_preserves_history(self):
+        from editor.runtime import make_preview
+        from briefing import deliver
+        policy = load_policy().model_copy(update={'max_repairs': 0})
+        rejection = Review(approved=False, issues=['Unsupported reporting'], rejected_development_ids=[])
+        with tempfile.TemporaryDirectory() as tmp:
+            root, fresh = Path(tmp), Freshness(START, END)
+            preview = root / 'preview'
+            history = [{'event_key': 'previously-delivered'}]
+            (root / 'history.json').write_text(json.dumps(history))
+            with patch('editor.runtime.research_developments', return_value=([development()], [])), \
+                    patch('editor.composition.ask', side_effect=[edition(), rejection, edition(), rejection]) as ask, \
+                    patch('editor.runtime.generate_media') as media, patch('briefing.STATE', root), \
+                    patch('briefing.GOOGLE_USERNAME', 'sender@example.com'), \
+                    patch('briefing.send_email', return_value=True) as smtp:
+                make_preview(None, None, {}, fresh, history, policy, preview, '{newsletter_content}')
+                deliver(preview, everyone=True)
+                self.assertEqual(ask.call_count, 4)
+                media.assert_not_called()
+                sent_html = smtp.call_args.args[0]
+                self.assertIn('could not be completed', sent_html)
+                self.assertNotIn(QUOTE, sent_html)
+                self.assertEqual(json.loads((root / 'history.json').read_text()), history)
+            payload = json.loads((preview / 'delivery.json').read_text())
+            self.assertTrue(payload['service_notice'])
+            self.assertEqual(payload['selected'], [])
+            review = json.loads((preview / 'final-review.json').read_text())
+            self.assertFalse(review['approved'])
+            self.assertEqual([r['phase'] for r in review['reviews']], ['normal', 'recovery'])
+            self.assertTrue((preview / 'recovery-rejected-draft.json').exists())
+
+    def test_recovery_is_independently_reviewed_before_delivery(self):
+        from editor.runtime import compose_with_recovery
+        policy = load_policy().model_copy(update={'max_repairs': 0})
+        with tempfile.TemporaryDirectory() as tmp, patch('editor.composition.ask', side_effect=[
+                edition(), Review(approved=False, issues=['Fix headline'], rejected_development_ids=[]),
+                edition(), Review(approved=True, issues=[], rejected_development_ids=[])]) as ask:
+            _, selected, review = compose_with_recovery(None, None, [development()],
+                Freshness(START, END), policy, [], Path(tmp))
+        self.assertTrue(ask.call_args.kwargs['independent'])
+        self.assertTrue(review['approved'])
+        self.assertEqual(len(review['reviews']), 2)
+        self.assertEqual(len(selected), 1)
+
+
 class Composition(unittest.TestCase):
     def setUp(self):
         self.fresh = Freshness(START, END)

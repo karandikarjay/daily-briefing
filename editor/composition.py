@@ -171,11 +171,11 @@ def validate_edition(edition, developments, freshness, policy):
     return [by_id[sid] for story in edition.stories for sid in story.development_ids]
 
 
-def compose_edition(client, fallback, developments, freshness, policy, history=None):
+def compose_edition(client, fallback, developments, freshness, policy, history=None, *, recovery_issues=None):
     if not developments:
         return empty_edition(), [], {'approved': True, 'reviews': [], 'word_count': 0}
     available = list(developments)
-    previous, feedback, reviews, removed = None, [], [], []
+    previous, feedback, reviews, removed = None, list(recovery_issues or []), [], []
     repair_draft = None
     prompt = '''Write Future Appetite using the editorial brief and verified developments.
 Choose the most important material across topics, order freely, and allocate space by
@@ -207,6 +207,12 @@ up to max_images. Do not imply actual news photography or invent event details.
 The regular five market charts are added separately; leave charts empty. Do not
 invent prices, returns, or trends. Their headings count toward the word budget.
 If feedback is provided, repair the cited problems while retaining sound reporting.
+'''
+    if recovery_issues is not None:
+        prompt += '''Recovery edition: start again from the evidence and resolve ALL supplied
+review issues. Write brief, attributed factual reporting; omit optional analysis and
+transitions that introduce unsupported implications. Retain important news and its
+limitations. Use explicit, factual headlines. Account for omissions as usual.
 '''
     for attempt in range(policy.max_repairs + 1):
         if repair_draft is not None:
@@ -260,11 +266,14 @@ If feedback is provided, repair the cited problems while retaining sound reporti
             'and useful implications, avoiding generic hype. Do not impose topic quotas. '
             'Reject material omissions of stronger verified news. Images must be clearly '
             'illustrative, not purported event photographs. Charts must be relevant. '
+            'List ALL material repair issues in this pass, including subject and headlines. '
+            'Use prior reviews to check repairs consistently; do not reopen resolved issues '
+            'without identifying a remaining material error. '
             'List concrete repair issues. rejected_development_ids is ONLY for developments '
             'that cannot anchor a story (old, repeated, outside scope or invalid evidence), '
             'not merely flawed prose. Do not reject for harmless stylistic preferences. '
             'Approve only if no material issues remain.',
-            {'brief': policy.model_dump(), 'edition': edition.model_dump(),
+            {'brief': policy.model_dump(), 'edition': edition.model_dump(), 'prior_reviews': reviews,
              'verified_developments': evidence_context(available, edition), 'previously_covered': history or [],
              'window_start': freshness.start.isoformat(), 'window_end': freshness.end.isoformat()}, independent=True)
         reviews.append({'attempt': attempt+1, 'stage': 'edition_review', **review.model_dump()})
