@@ -46,12 +46,13 @@ def render(edition, sources, images, chart_data, template, *, placeholders=False
             pieces.append(f'<p style="font-size:16px;line-height:1.65;margin:0 0 14px;">{linked_text(p, sources)}</p>')
         pieces.append('</section>')
     notes = {n.key: n.text for n in edition.market_notes}
-    keys = [k for k in CHART_TITLES if k in images or placeholders]
+    keys = [k for k in CHART_TITLES if k in images or k in chart_data or placeholders]
     if keys:
         pieces.append('<h2 style="font-family:Georgia,serif;font-size:25px;font-weight:400;margin:0 0 22px;">Markets and prices</h2>')
     for key in keys:
         pieces.append(f'<section style="margin-bottom:26px;"><h3 style="font-size:17px;font-weight:400;margin:0 0 10px;">{escape(CHART_TITLES[key])}</h3>')
-        pieces.append(f'<img width="580" style="width:100%;height:auto;display:block;" src="cid:{key}" alt="{escape(CHART_TITLES[key])} chart">')
+        if key in images or placeholders:
+            pieces.append(f'<img width="580" style="width:100%;height:auto;display:block;" src="cid:{key}" alt="{escape(CHART_TITLES[key])} chart">')
         if key in notes:
             pieces.append(f'<p style="font-size:15px;line-height:1.6;margin:10px 0;">{escape(notes[key])}</p>')
         data = chart_data.get(key, {})

@@ -68,6 +68,32 @@ class CodexPipelineTests(unittest.TestCase):
         self.assertIn('href="https://example.org/study"',html)
         self.assertNotIn('Why it matters',html)
 
+    def test_replay_keeps_chart_notes_without_live_images(self):
+        from codex_pipeline.models import Note
+        self.draft.edition.market_notes=[Note(key='bynd-chart',text='The frozen observation remains useful.')]
+        html=render(self.draft.edition,self.sources,{}, {'bynd-chart':{}},'{newsletter_content}')
+        self.assertIn('The frozen observation remains useful.',html)
+        self.assertNotIn('cid:bynd-chart',html)
+
+    def test_quote_matching_tolerates_only_extractor_punctuation_spacing(self):
+        from codex_pipeline.runtime import quote_present
+        self.assertTrue(quote_present('Temporal, today announced funding.', 'Temporal , today announced funding.'))
+        self.assertFalse(quote_present('Temporal, today announced $550 million.', 'Temporal , today announced $500 million.'))
+
+    def test_alternative_public_source_can_recover_missing_metadata(self):
+        from codex_pipeline.runtime import collect_public
+        from codex_pipeline.models import Lead
+        source=dict(self.sources['a'],source_type='article',date_reason='publication_in_window')
+        failed=dict(source,source_id='failed',url='https://example.org/blocked',date_verified=False,date_reason='missing_publication_date')
+        lead=Lead(url=failed['url'],title='Hospital study',topic='Vegan Movement',significance='New evaluation',prior_coverage_query='public hospital study prior coverage',context_urls=[source['url']])
+        result=Research(research_completed=True,leads=[lead],coverage_note='Searched globally')
+        with tempfile.TemporaryDirectory() as tmp, patch('codex_pipeline.runtime.run_agent',return_value=result) as agent, patch('config.TAVILY_API_KEY','test'), patch('tavily.TavilyClient') as tavily, patch.object(self.fresh,'inspect',side_effect=[failed,source]):
+            tavily.return_value.search.return_value={'results':[]}
+            sources,anchors=collect_public(self.fresh,load_policy(),Path(tmp))
+            self.assertEqual(anchors,['a'])
+            self.assertEqual(sources['a']['novelty_check']['prior_coverage_query'],lead.prior_coverage_query)
+            self.assertEqual(agent.call_count,1)
+
     def test_wire_schema_has_all_required_fields(self):
         schema=strict_schema(Draft)
         self.assertEqual(set(schema['required']),set(schema['properties']))

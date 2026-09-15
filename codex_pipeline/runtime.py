@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -30,6 +31,7 @@ def private_json(path, data):
 def collect_public(freshness, policy, directory):
     from config import TAVILY_API_KEY
     from tavily import TavilyClient
+    deadline = time.monotonic() + policy.research_seconds
     research = run_agent('public researcher', Research, {
         'topics': policy.topics, 'selection': policy.selection,
         'window_start': freshness.start.isoformat(), 'window_end_exclusive': freshness.end.isoformat(),
@@ -51,8 +53,6 @@ def collect_public(freshness, policy, directory):
         record = freshness.inspect({'url': lead.url, 'title': lead.title,
                                     'source_name': urlparse(lead.url).hostname, 'topic': lead.topic})
         report = {'url': lead.url, 'reason': record['date_reason'], 'accepted': False}
-        if not record['date_verified']:
-            return None, [], report
         try:
             response = TavilyClient(api_key=TAVILY_API_KEY).search(
                 query=lead.prior_coverage_query, topic='general', search_depth='advanced',
@@ -61,7 +61,7 @@ def collect_public(freshness, policy, directory):
             report.update(reason='prior_coverage_search_failed', error_type=type(exc).__name__)
             return None, [], report
         results = response.get('results', [])
-        report.update(accepted=True, prior_coverage_query=lead.prior_coverage_query,
+        report.update(prior_coverage_query=lead.prior_coverage_query,
                       search_results=results, significance=lead.significance)
         context = []
         urls = list(dict.fromkeys(lead.context_urls + [r['url'] for r in results if r.get('url')]))[:4]
@@ -74,20 +74,51 @@ def collect_public(freshness, policy, directory):
                     (item['date_reason'] == 'publication_out_of_window' and
                      not_after_cutoff(item['published_at'], freshness.end))):
                 context.append(item)
-        record['novelty_check'] = {'prior_coverage_query': lead.prior_coverage_query,
-            'search_results': [{k: r.get(k) for k in ('url', 'title', 'content', 'published_date')} for r in results]}
-        record['research_significance'] = lead.significance
-        return record, context, report
+        candidates = [record] if record['date_verified'] else [item for item in context if item['date_verified']]
+        for candidate in candidates:
+            candidate['novelty_check'] = {'prior_coverage_query': lead.prior_coverage_query,
+                'search_results': [{k: r.get(k) for k in ('url', 'title', 'content', 'published_date')} for r in results]}
+            candidate['research_significance'] = lead.significance
+            candidate['topic'] = lead.topic
+            # Alternative pages are candidates for editorial novelty review, not
+            # automatically proof of the event described by the original lead.
+            candidate['discovered_for'] = lead.title
+        report.update(accepted=bool(candidates), retained_urls=[c['url'] for c in candidates])
+        return candidates, context, report
     with ThreadPoolExecutor(max_workers=4) as pool:
         collected = list(pool.map(retain, research.leads))
     sources, anchors, audit = {}, [], []
-    for record, context, report in collected:
-        audit.append(report)
-        if record:
-            sources[record['source_id']] = record
-            anchors.append(record['source_id'])
+    def merge(batch):
+        for records, context, report in batch:
+            audit.append(report)
+            for record in records or []:
+                sources[record['source_id']] = record
+                anchors.append(record['source_id'])
             for source in context:
                 sources.setdefault(source['source_id'], source)
+    merge(collected)
+    failures = [{'url': r['url'], 'reason': r['reason']} for r in audit if not r['accepted']]
+    remaining = int(deadline-time.monotonic())
+    if failures and remaining >= 60:
+        recovery = run_agent('public source recovery', Research, {
+            'topics': policy.topics, 'window_start': freshness.start.isoformat(),
+            'window_end_exclusive': freshness.end.isoformat(),
+            'failed_public_sources': failures,
+            'original_public_leads': research.model_dump(),
+            'assignment': 'Recover significant public leads whose publication metadata could not '
+            'be independently retrieved. Find alternative original releases or reliable coverage '
+            'of the SAME developments with precise publication timestamps. Prefer dated newswire '
+            'releases or publisher pages with accessible article metadata. Do not repeat the failed '
+            'URLs, widen the reporting window, or substitute recycled news. Return at most six '
+            'strong alternative leads, with original-announcement/prior-coverage queries. If '
+            'nothing qualifies, return an empty list and explain why. research_completed indicates '
+            'whether tools worked, not whether qualifying news exists.',
+        }, directory, web=True, seconds=remaining)
+        private_json(directory / 'recovery-research.json', recovery.model_dump())
+        if not recovery.research_completed:
+            raise RuntimeError('Public source recovery failed; inspect recovery-research.json')
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            merge(list(pool.map(retain, recovery.leads[:6])))
     private_json(directory / 'discovery-audit.json', audit)
     return sources, list(dict.fromkeys(anchors))
 
@@ -122,6 +153,13 @@ def collect_charts(directory):
     return images, observations
 
 
+def quote_present(quote, text):
+    # HTML extraction inserts spaces before punctuation around inline links.
+    # Normalize only that whitespace, without changing words or punctuation.
+    normalize = lambda value: re.sub(r'\s+([,.;:!?])', r'\1', value)
+    return quote_in(normalize(quote), normalize(text))
+
+
 def validate(draft, sources, anchors, history, freshness, policy, chart_data):
     developments, events, selected_sources = {}, set(), set()
     old_events = {str(h.get('event_key') or '').casefold() for h in history}
@@ -133,8 +171,8 @@ def validate(draft, sources, anchors, history, freshness, policy, chart_data):
             raise ValueError('Development must use a retained in-window candidate source')
         if not in_window(source.get('published_at'), freshness.start, freshness.end):
             raise ValueError('Source outside reporting window')
-        if not quote_in(d.evidence_quote, source.get('article') or source.get('body', '')):
-            raise ValueError('Development quote not found in retained source')
+        if not quote_present(d.evidence_quote, source.get('article') or source.get('body', '')):
+            raise ValueError(f'Development quote not found in retained source {d.evidence_source_id}: {d.evidence_quote[:180]}')
         try:
             day = datetime.strptime(d.announcement_date, '%Y-%m-%d').date()
         except ValueError:
@@ -163,7 +201,7 @@ def validate(draft, sources, anchors, history, freshness, policy, chart_data):
                 source = sources.get(cite.source_id)
                 if not source or not not_after_cutoff(source.get('published_at'), freshness.end):
                     raise ValueError('Unknown, undated or post-cutoff citation')
-                if not quote_in(cite.quote, source.get('article') or source.get('body', '')):
+                if not quote_present(cite.quote, source.get('article') or source.get('body', '')):
                     raise ValueError(f'Quotation not found in source {cite.source_id}: {cite.quote[:120]}')
                 if cite.link_text and source.get('url'):
                     if cite.link_text not in paragraph.text:
@@ -244,7 +282,8 @@ def make_preview(freshness, history, policy, directory, *, status=None, replay=N
             'coverage results; old context never makes an old event new. Chart data is an exception '
             'to story freshness: report its actual observation date, never pretend monthly data is daily. '
             'Write 450-550 words of news and reserve roughly 100-150 for the five chart notes. '
-            'Avoid unsupported claims in illustration captions too.',
+            'Avoid unsupported claims in illustration captions too. Use literal informative headlines; '
+            'do not treat a company valuation as money invested.',
             feedback=feedback, previous_draft=previous), directory,
             seconds=max(1, int(deadline-time.monotonic())))
         previous = draft.model_dump()
@@ -265,7 +304,9 @@ def make_preview(freshness, history, policy, directory, *, status=None, replay=N
             'attribution, methods and essential qualifications. Require no unsupported causal claims '
             'about chart movements. Flag important coverage omissions from available candidates, but '
             'do not demand quotas, evergreen content or more than the word budget. Check source links '
-            'support their surrounding claims. Be proportionate: style preferences do not block an '
+            'support their surrounding claims. FAST email sources without a public URL must have empty '
+            'link_text and clear narrative attribution; do not demand an email hyperlink or invent '
+            'a public URL. Be proportionate: style preferences do not block an '
             'accurate useful edition. Approve only with an empty issues list. If no stories were '
             'selected, independently check that the omissions justify an empty edition.'), directory,
             seconds=max(1, int(deadline-time.monotonic())))
