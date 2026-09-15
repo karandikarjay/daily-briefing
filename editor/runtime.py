@@ -11,11 +11,15 @@ from .composition import compose_edition, EditionReviewError
 from .research import research_developments
 from .rendering import render_edition, CHART_TITLES, word_count
 from .models import Edition, Omission
+from .salvage import shorten_failed_draft
 
 
 def compose_with_recovery(client, fallback, developments, freshness, policy, history, directory):
     """Retry rejected copy once from scratch; never send an unapproved draft."""
     reviews, rejected, issues = [], set(), []
+    deadline = time.monotonic() + policy.composition_seconds
+    rewrite_deadline = deadline - min(120, policy.composition_seconds / 4)
+    failed_draft, failed_reviews = None, []
     for phase in ('normal', 'recovery'):
         available = [d for d in developments if d['source_id'] not in rejected]
         try:
@@ -23,10 +27,11 @@ def compose_with_recovery(client, fallback, developments, freshness, policy, his
             brief = policy if phase == 'normal' else policy.model_copy(
                 update={'target_words': min(policy.target_words, 400)})
             edition, selected, review = compose_edition(
-                client, fallback, available, freshness, brief, history, **kwargs)
+                client, fallback, available, freshness, brief, history, deadline=rewrite_deadline, **kwargs)
             review['reviews'] = reviews + [dict(r, phase=phase) for r in review.get('reviews', [])]
             review['removed_developments'] = sorted(rejected | set(review.get('removed_developments', [])))
             review['recovery_used'] = phase == 'recovery'
+            review['delivery_kind'] = 'shortened' if phase == 'recovery' else 'full'
             return edition, selected, review
         except EditionReviewError as exc:
             from briefing import save_json
@@ -34,7 +39,32 @@ def compose_with_recovery(client, fallback, developments, freshness, policy, his
             save_json(directory / f'{phase}-rejected-draft.json', exc.draft)
             reviews.extend(dict(r, phase=phase) for r in exc.reviews)
             issues.extend(issue for r in exc.reviews for issue in r.get('issues', []))
+            issues.extend(f['detail'] for r in exc.reviews for f in r.get('findings', [])
+                          if f.get('detail') and f['detail'] not in issues)
             rejected.update(sid for r in exc.reviews for sid in r.get('rejected_development_ids', []))
+            if exc.draft is not None:
+                failed_draft, failed_reviews = exc.draft, exc.reviews
+    # Two bounded pruning passes, each followed by independent whole-edition review.
+    for pruning_pass in range(2):
+        if time.monotonic() >= deadline:
+            break
+        available = [d for d in developments if d['source_id'] not in rejected]
+        draft = shorten_failed_draft(failed_draft, failed_reviews, available, rejected)
+        if draft is None:
+            break
+        try:
+            edition, selected, review = compose_edition(client, fallback, available, freshness,
+                policy.model_copy(update={'max_repairs': 0}), history,
+                initial_draft=draft, deadline=deadline, salvage=True, prior_review_context=reviews)
+            review.update(reviews=reviews + [dict(r, phase='shortened') for r in review['reviews']],
+                          recovery_used=True, delivery_kind='shortened',
+                          removed_developments=sorted(rejected))
+            return edition, selected, review
+        except EditionReviewError as exc:
+            save_json(directory / f'shortened-rejected-draft-{pruning_pass+1}.json', exc.draft)
+            reviews.extend(dict(r, phase='shortened') for r in exc.reviews)
+            rejected.update(sid for r in exc.reviews for sid in r.get('rejected_development_ids', []))
+            failed_draft, failed_reviews = exc.draft, exc.reviews
     # This fixed operational message makes no news claims and needs no model call.
     # A rejected newsletter is not an approved edition or an empty news window.
     notice = Edition(subject='Future Appetite: Today’s briefing is unavailable',
@@ -45,6 +75,7 @@ def compose_with_recovery(client, fallback, developments, freshness, policy, his
             for d in developments])
     logging.error('Sending service notice: normal and recovery editions failed review')
     return notice, [], {'approved': False, 'service_notice': True, 'recovery_used': True,
+                        'delivery_kind': 'service_notice',
                         'reviews': reviews, 'word_count': word_count(notice, developments)}
 
 
@@ -81,7 +112,7 @@ def generate_media(client, edition, directory):
 
 
 def make_preview(client, fallback, sources_by_topic, freshness, history, policy,
-                 directory, template, *, replay=None):
+                 directory, template, *, replay=None, status=None):
     from briefing import save_json, remember_rejections
     directory.mkdir(parents=True, mode=0o700)
     usage_start = len(TEXT_USAGE)
@@ -91,24 +122,33 @@ def make_preview(client, fallback, sources_by_topic, freshness, history, policy,
                                                 'history': history})
     decisions, developments, final_reviews = [], [], []
     try:
+        if status:
+            status.stage('researching', preview=str(directory))
         if replay is None:
             developments, decisions = research_developments(client, fallback, sources_by_topic,
                                                             freshness, history, policy)
         else:
             developments = replay
         save_json(directory / 'developments.json', {**base, 'developments': developments, 'history': history})
+        if status:
+            status.stage('composing')
         edition, selected, review = compose_with_recovery(
             client, fallback, developments, freshness, policy, history, directory)
         final_reviews = review.get('reviews', [])
         save_json(directory / 'edition.json', edition.model_dump())
         save_json(directory / 'final-review.json', review)
+        if status:
+            status.stage('media', delivery_kind=review.get('delivery_kind', 'full'))
         # Frozen-evidence comparisons exercise writing/review without live media data.
         images = generate_media(fallback, edition, directory) if replay is None and not review.get('service_notice') else {}
+        if status:
+            status.stage('rendering')
         markup = render_edition(template, edition, developments, images)
         (directory / 'newsletter.html').write_text(markup)
         save_json(directory / 'delivery.json', {
             'pipeline': 'editor', 'replay_only': replay is not None,
             'service_notice': review.get('service_notice', False),
+            'delivery_kind': review.get('delivery_kind', 'full'),
             'edition_date': freshness.end.date().isoformat(), 'subject': edition.subject,
             'selected': selected, 'images': images,
             'image_sha256': {key: hashlib.sha256(Path(path).read_bytes()).hexdigest() for key, path in images.items()},

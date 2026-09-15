@@ -21,6 +21,7 @@ class Policy(StrictModel):
     max_verifications: int = Field(default=10, ge=1, le=20)
     research_seconds: int = Field(default=900, ge=1, le=1800)
     max_repairs: int = Field(default=2, ge=0, le=3)
+    composition_seconds: int = Field(default=900, ge=60, le=1800)
     max_images: int = Field(default=8, ge=0, le=12)
     max_charts: int = Field(default=5, ge=0, le=5)
 

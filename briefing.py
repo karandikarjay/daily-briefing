@@ -229,8 +229,15 @@ def run():
     if args.replay_evidence and (not args.dry_run or args.pipeline != 'editor'):
         parser.error('--replay-evidence requires --dry-run --pipeline editor')
     STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    from run_status import ProductionRun
     with (STATE / 'run.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return run_locked(args, ProductionRun, lock)
+
+
+def run_locked(args, production_run, lock):
+    # Keep the lock held by run() throughout collection, rendering and delivery.
+    with production_run(args.send_to_everyone, STATE) as status:
         logger, prompt_logger = setup_logging()
         if args.send_preview:
             deliver(args.send_preview.resolve(), everyone=False)
@@ -251,6 +258,7 @@ def run():
         logging.info('Verified briefing window [%s, %s); primary=%s fallback=%s', start, end, AI_MODEL, TEXT_FALLBACK_MODEL)
         history = load_history(include_rejections=True, replay_edition=not args.send_to_everyone)
         sources_by_topic = {}
+        status.stage('collecting', edition_date=end.date().isoformat())
         if replay is not None:
             history = replay.get('history', [])
         for section in (SECTIONS if replay is None else []):
@@ -261,10 +269,12 @@ def run():
             directory = ROOT / 'previews' / datetime.now(TIMEZONE).strftime('%Y%m%d-%H%M%S-%f')
             decisions = make_preview(client, fallback, sources_by_topic, freshness, history,
                 EDITORIAL_POLICY, directory, Path(TEMPLATE_PATH).read_text(),
-                replay=replay['developments'] if replay is not None else None)
+                replay=replay['developments'] if replay is not None else None, status=status)
             logging.info('Validated editorial preview saved to %s', directory)
             if not args.dry_run:
+                status.stage('sending', preview=str(directory))
                 deliver(directory, everyone=args.send_to_everyone)
+                status.stage('completed')
             return
         newsletter, selected, decisions, review = compose_with_replacements(
             client, fallback, sources_by_topic, freshness, history,
@@ -297,7 +307,9 @@ def run():
         save_json(directory / 'delivery.json', {'edition_date': end.date().isoformat(), 'subject': subject, 'selected': selected, 'images': saved_images, 'html_sha256': hashlib.sha256(rendered.encode()).hexdigest()})
         logging.info('Validated preview saved to %s', directory)
         if not args.dry_run:
+            status.stage('sending', preview=str(directory))
             deliver(directory, everyone=args.send_to_everyone)
+            status.stage('completed')
 
 
 if __name__ == '__main__':

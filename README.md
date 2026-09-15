@@ -27,9 +27,10 @@ professional, engaging, and grounded in evidence.
    specific fields/paragraphs without changing untouched copy, or remove invalid
    developments. Exhausted repairs trigger one shorter rewrite from verified evidence,
    with prior feedback and the same review/repair checks. If that also fails review,
-   send a fixed service notice with no unapproved stories or media. The audit retains
-   the failed reviews and drafts; no stories are marked delivered. Writer/API errors
-   still abort.
+   prune unresolved material and independently review the shortened edition (up to
+   two pruning passes). Only if no useful edition passes, send a fixed service notice
+   with no unapproved stories or media. The audit retains failed reviews and drafts;
+   service notices mark no stories delivered. Writer/API errors still abort.
 6. **Render and deliver:** Controlled HTML components escape model text and
    construct citations from stored evidence. Optional media is archived with the
    preview. Delivery checks checksums and prevents blind duplicate sends.
@@ -51,6 +52,7 @@ scopes, and budgets. Defaults:
 | Candidate verifications | 10 |
 | Research deadline | 900 seconds, checked between actions |
 | Draft repair attempts | 2 |
+| Composition deadline | 900 seconds between calls; up to 120 reserved for pruning |
 | Coverage recovery | Independent review plus up to 3 additional verifications |
 | Illustrations / charts | An illustration per story (up to 8); all 5 regular charts |
 
@@ -166,3 +168,15 @@ state-directory lock prevents concurrent runs.
 `--pipeline legacy` or `BRIEFING_PIPELINE=legacy` retains the old three-section
 orchestration for operational rollback. Shared freshness and delivery safeguards
 apply to both pipelines. See `AGENTS.md` for production sync instructions.
+
+### Resilient editorial delivery and monitoring
+
+Reviews identify exact fields and issue IDs. Repairs cover captions and illustration descriptions; ineffective repairs are detected before another review call. After normal and simpler recovery drafts exhaust repairs, up to two deterministic pruning passes can retain a smaller edition. Every shortened edition still needs independent whole-edition approval. Unresolved factual stories are withheld, and a fixed service notice remains the last resort. Composition defaults to 900 seconds between calls, with up to 120 seconds reserved for pruning; in-flight calls can exceed that deadline.
+
+Production records its active stage in `state/production-run.json`. The independent weekday watchdog runs at 6:45 a.m. Eastern and writes `state/watchdog-status.json`:
+
+```bash
+python check_delivery.py --write-state
+```
+
+It distinguishes full or shortened approved delivery from service notices, missing delivery, and uncertain sends. Exit status 1 means investigate; it does not mean resend. It uses only Python's standard library and can inspect production even if application dependencies fail. Codex's recurring SSH check provides user alerts while the local computer and app are running. Neither monitor sends newsletter email.

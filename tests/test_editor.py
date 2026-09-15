@@ -239,7 +239,8 @@ class Composition(unittest.TestCase):
     def test_structural_failure_repaired_before_semantic_review(self):
         bad = edition()
         bad.stories[0].paragraphs[0].citations[0].quote = 'This fabricated quote is not in the evidence.'
-        repairs = Repairs(paragraphs=[ParagraphEdit(story_index=0, paragraph_index=0, paragraph=story().paragraphs[0])])
+        repairs = Repairs(paragraphs=[ParagraphEdit(story_index=0, paragraph_index=0, paragraph=story().paragraphs[0])],
+                          addressed_issue_ids=['citation-0-0'])
         with patch('editor.composition.ask', side_effect=[bad, repairs, Review(approved=True, issues=[], rejected_development_ids=[])]):
             _, _, review = compose_edition(None, None, [development()], self.fresh, self.policy)
         self.assertEqual(review['reviews'][0]['stage'], 'structural_review')
