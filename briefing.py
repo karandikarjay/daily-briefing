@@ -197,6 +197,12 @@ def deliver(directory, everyone=False):
                 hashlib.sha256(review_bytes).hexdigest() != payload.get('review_sha256')):
             raise ValueError('Codex preview lacks unchanged independent approval')
         if everyone:
+            # A new preview directory must not bypass an earlier group attempt for
+            # this edition, especially when SMTP succeeded but history writing failed.
+            for attempt_path in (ROOT / 'previews').glob('*/group-send-attempt.json'):
+                prior_payload = json.loads((attempt_path.parent / 'delivery.json').read_text())
+                if prior_payload.get('edition_date') == payload.get('edition_date'):
+                    raise ValueError('A group send was already attempted for this edition; inspect Sent before further action')
             old = {str(h.get('event_key') or '').strip().casefold() for h in load_history()}
             if any(str(d.get('event_key') or '').strip().casefold() in old for d in payload['selected']):
                 raise ValueError('Preview contains previously group-delivered events')

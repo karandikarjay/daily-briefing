@@ -85,7 +85,7 @@ class CodexPipelineTests(unittest.TestCase):
                      'images':{},'html_sha256':hashlib.sha256(html.encode()).hexdigest(),
                      'review_sha256':hashlib.sha256(review).hexdigest(),'edition_date':'2026-09-15'}
             (preview/'delivery.json').write_text(json.dumps(payload))
-            with patch.object(briefing,'STATE',state),patch.object(briefing,'GOOGLE_USERNAME','jay@example.org'),patch.object(briefing,'send_email',return_value=True) as send:
+            with patch.object(briefing,'ROOT',root),patch.object(briefing,'STATE',state),patch.object(briefing,'GOOGLE_USERNAME','jay@example.org'),patch.object(briefing,'send_email',return_value=True) as send:
                 briefing.deliver(preview,everyone=False)
                 self.assertEqual(json.loads((state/'history.json').read_text()),[])
                 self.assertFalse(send.call_args.args[2])
@@ -107,6 +107,20 @@ class CodexPipelineTests(unittest.TestCase):
                 briefing.setup_logging.return_value=(None,None)
                 briefing.run()
                 make.assert_called_once()
+                send.assert_not_called()
+
+    def test_new_directory_cannot_bypass_an_uncertain_group_attempt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); previous=root/'previews'/'previous'; previous.mkdir(parents=True)
+            (previous/'group-send-attempt.json').write_text('{"status":"started"}')
+            (previous/'delivery.json').write_text('{"edition_date":"2026-09-15"}')
+            current=root/'previews'/'current';current.mkdir()
+            review=b'{"approved":true}'
+            (current/'final-review.json').write_bytes(review)
+            (current/'delivery.json').write_text(json.dumps({'pipeline':'codex','edition_date':'2026-09-15', 'review_sha256':hashlib.sha256(review).hexdigest()}))
+            with patch.object(briefing,'ROOT',root),patch.object(briefing,'send_email') as send:
+                with self.assertRaisesRegex(ValueError,'already attempted'):
+                    briefing.deliver(current,everyone=True)
                 send.assert_not_called()
 
     def test_changed_review_cannot_authorize_send(self):
