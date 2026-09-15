@@ -89,6 +89,12 @@ def get_beyond_meat_bond_chart() -> None:
         if os.path.exists(temp_screenshot_path):
             transparent_screenshot(temp_screenshot_path, BEYOND_MEAT_BOND_CHART_PATH)
             logging.info("Saved transparent bond chart: %s", BEYOND_MEAT_BOND_CHART_PATH)
+            return {'beyond-meat-bond-chart': {
+                'source_name': 'Markets Insider', 'source_url': BEYOND_MEAT_BOND_URL,
+                'frequency': 'publisher bond quote; inspect observation date, may be stale',
+                'publisher_text': driver.find_element(By.TAG_NAME, 'body').text[:16000],
+                'note': 'The chart is a publisher screenshot, not a numeric time series. Do not infer precise changes not supported by the publisher text.',
+            }}
         else:
             logging.error(f"Error: Screenshot file {temp_screenshot_path} not found")
         

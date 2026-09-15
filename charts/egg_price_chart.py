@@ -63,6 +63,12 @@ def extract_egg_price_chart() -> None:
         plt.close()
 
         logging.info(f"Egg price chart saved to: {EGG_PRICE_CHART_PATH}")
+        return {'egg-price-chart': {
+            'source_name': 'BLS via FRED',
+            'source_url': 'https://fred.stlouisfed.org/series/APU0000708111',
+            'unit': 'USD per dozen', 'frequency': 'monthly average; not a daily price',
+            'observations': [{'date': str(row.date.date()), 'value': float(row.price)} for row in df.itertuples()],
+        }}
 
     except Exception as e:
         logging.exception(f"Error generating egg price chart: {e}")

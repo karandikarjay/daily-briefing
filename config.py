@@ -112,7 +112,7 @@ SECTIONS = [
      "content_type": "emails" if topic == "Vegan Movement" else "articles"}
     for topic, requirements in EDITORIAL_POLICY.topics.items()
 ]
-BRIEFING_PIPELINE = os.getenv("BRIEFING_PIPELINE", "editor")
+BRIEFING_PIPELINE = os.getenv("BRIEFING_PIPELINE", "codex")
 
 # Timezone settings
 TIMEZONE = ZoneInfo("America/New_York")

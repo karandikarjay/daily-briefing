@@ -4,6 +4,7 @@ Financial charts module for the Daily Briefing application.
 This module provides functions for creating financial charts for the daily briefing.
 """
 
+from pathlib import Path
 import logging
 import time
 import matplotlib.pyplot as plt
@@ -20,6 +21,7 @@ def create_charts() -> None:
     Creates charts for a set of financial tickers using yfinance data.
     Saves the charts as image files with informative titles.
     """
+    observations = {}
     plt.style.use(CHART_STYLE)
 
     for i, (ticker, info) in enumerate(TICKERS.items()):
@@ -56,4 +58,15 @@ def create_charts() -> None:
 
         finish_chart(ax, info['filename'])
         plt.close()
-        logging.info(f"Saved chart: {info['filename']}") 
+        logging.info(f"Saved chart: {info['filename']}")
+        close = data['Close']
+        if isinstance(close, pd.DataFrame):
+            close = close[ticker]
+        observations[Path(info['filename']).stem] = {
+            'source_name': 'Yahoo Finance',
+            'source_url': 'https://finance.yahoo.com/quote/' + ticker.replace('^', '%5E') + '/history/',
+            'unit': 'index points' if ticker == '^GSPC' else 'USD per share',
+            'frequency': 'daily market close',
+            'observations': [{'date': str(date.date()), 'value': float(value)} for date, value in close.dropna().items()],
+        }
+    return observations

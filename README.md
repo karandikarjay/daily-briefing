@@ -1,3 +1,28 @@
+# Skill-led Future Appetite
+
+The default pipeline runs the versioned [Future Appetite skill](skills/future-appetite/SKILL.md) through Codex CLI on the production server. Public research, private editing and fresh review contexts replace the older editorial action/repair loop. The Python wrapper retains publication-date and quotation checks, controlled rendering, market charts, immutable previews, group-only delivery history, and sending safeguards.
+
+```bash
+python main.py                         # Generate preview only
+python main.py --dry-run               # Explicit no-send preview
+python main.py --send-preview /absolute/path/to/previews/RUN  # Personal +list only
+python main.py --send-to-everyone       # Production group; not for development
+python main.py --pipeline editor --dry-run  # Previous pipeline for comparison
+python main.py --pipeline codex --dry-run --replay-evidence /absolute/path/to/previews/RUN/evidence.json
+```
+
+Only production group deliveries mark events as old. Personal previews never update group publication history. Uncertain delivery is investigated through Sent before any retry. `--send-to-everyone` remains a wrapper-controlled flag, not a model decision.
+
+## Runtime and deployment
+
+Install the pinned official Codex CLI 0.154.0 on the server and put `codex` on PATH, or set `CODEX_BINARY` to it. `CODEX_MODEL` defaults to `gpt-5.6-sol`. Existing `.env` credentials supply OpenAI (Codex and images), Tavily (independent prior-coverage search), and Gmail (FAST and delivery). The CLI runs with an isolated HOME/config and receives only the OpenAI credential. Private roles cannot browse or execute commands. Pin and evaluate CLI upgrades before changing production.
+
+The server's existing weekday cron and 6:45 Eastern watchdog remain in place. Track skill, brief, code and template changes together in Git; merge into `master` and fast-forward production. Each preview records the Git revision, model, source evidence, review history and token use. Keep private evidence, credentials and state out of Git. `AGENTS.md` describes synchronization and the rollback pipelines.
+
+Editorial preferences live in `editorial.json`; the skill has a short narrative writing example. Codex previews use a warm magazine email template with light/dark support, narrative source links and reviewed commentary on all five regular charts. The 800-word ceiling includes chart commentary. Browser appearance checks do not replace inspection in the real email clients.
+
+## Earlier pipeline reference
+
 # Future Appetite
 
 An Axios-style briefing for Jay and other people in the vegan movement. It covers
@@ -100,7 +125,7 @@ Configure `.env` in the checkout:
 - `RECIPIENT_EMAILS`: production recipient list.
 
 `.env` overrides existing environment values. Optional overrides: `AI_MODEL`,
-`BRIEFING_STATE_DIR` (default `state/`), and `BRIEFING_PIPELINE` (`editor` by default;
+`BRIEFING_STATE_DIR` (default `state/`), and `BRIEFING_PIPELINE` (`codex` by default;
 `legacy` for rollback). `--pipeline` overrides that last setting.
 
 Text defaults to `claude-opus-5` with the existing `gpt-5.6-sol` fallback. Whole-edition review uses `gpt-5.6-sol`, separate from the default writer; if writing falls back to OpenAI, review remains a separate call. Optional
@@ -131,7 +156,7 @@ and credentials must not be committed.
 ## Evaluate changes on identical evidence
 
 ```bash
-python main.py --dry-run --replay-evidence /absolute/path/to/previews/RUN/developments.json
+python main.py --pipeline editor --dry-run --replay-evidence /absolute/path/to/previews/RUN/developments.json
 python compare_previews.py /absolute/path/to/previews/A /absolute/path/to/previews/B
 ```
 
@@ -147,7 +172,7 @@ live previews also test discovery.
 
 ## Delivery and rollback
 
-**`python main.py` sends a personal preview. It is not a no-send test.** Sending
+**`python main.py` generates a preview without sending.** Sending
 test email requires explicit approval. To send an approved saved preview:
 
 ```bash

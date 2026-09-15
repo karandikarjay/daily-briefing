@@ -188,6 +188,18 @@ def deliver(directory, everyone=False):
     payload = json.loads((directory / 'delivery.json').read_text())
     if payload.get('replay_only'):
         raise ValueError('Frozen-evidence comparisons cannot be sent')
+    if payload.get('pipeline') == 'codex':
+        review_bytes = (directory / 'final-review.json').read_bytes()
+        review = json.loads(review_bytes)
+        notice = (payload.get('service_notice') is True and review.get('service_notice') is True
+                  and payload.get('selected') == [] and payload.get('images') == {})
+        if ((review.get('approved') is not True and not notice) or
+                hashlib.sha256(review_bytes).hexdigest() != payload.get('review_sha256')):
+            raise ValueError('Codex preview lacks unchanged independent approval')
+        if everyone:
+            old = {str(h.get('event_key') or '').strip().casefold() for h in load_history()}
+            if any(str(d.get('event_key') or '').strip().casefold() in old for d in payload['selected']):
+                raise ValueError('Preview contains previously group-delivered events')
     for key, expected in payload.get('image_sha256', {}).items():
         if hashlib.sha256(Path(payload['images'][key]).read_bytes()).hexdigest() != expected:
             raise ValueError('Preview image changed since validation; regenerate before sending')
@@ -219,15 +231,15 @@ def run():
     modes.add_argument('--dry-run', action='store_true', help='Save a complete preview; never send email')
     modes.add_argument('--send-to-everyone', action='store_true', help='Production group delivery')
     modes.add_argument('--send-preview', type=Path, help='Send a previously validated preview only to the sender')
-    parser.add_argument('--pipeline', choices=['editor', 'legacy'], default=BRIEFING_PIPELINE,
-                        help='Editorial pipeline (default: editor); legacy is available for rollback')
+    parser.add_argument('--pipeline', choices=['codex', 'editor', 'legacy'], default=BRIEFING_PIPELINE,
+                        help='Skill-led Codex pipeline (default); editor and legacy are available for rollback')
     parser.add_argument('--replay-evidence', type=Path,
-                        help='Recompose a frozen developments.json; requires --dry-run and editor pipeline')
+                        help='Recompose frozen evidence; requires --dry-run and a matching codex/editor pipeline')
     args = parser.parse_args()
-    if args.pipeline not in ('editor', 'legacy'):
-        parser.error('BRIEFING_PIPELINE must be editor or legacy')
-    if args.replay_evidence and (not args.dry_run or args.pipeline != 'editor'):
-        parser.error('--replay-evidence requires --dry-run --pipeline editor')
+    if args.pipeline not in ('codex', 'editor', 'legacy'):
+        parser.error('BRIEFING_PIPELINE must be codex, editor or legacy')
+    if args.replay_evidence and (not args.dry_run or args.pipeline not in ('codex', 'editor')):
+        parser.error('--replay-evidence requires --dry-run and codex or editor pipeline')
     STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
     from run_status import ProductionRun
     with (STATE / 'run.lock').open('w') as lock:
@@ -253,6 +265,18 @@ def run_locked(args, production_run, lock):
             if start.tzinfo is None or end.tzinfo is None or start >= end:
                 raise ValueError('Invalid frozen reporting window')
         freshness = Freshness(start, end)
+        if args.pipeline == 'codex':
+            from codex_pipeline.runtime import make_preview
+            if replay is not None and not all(k in replay for k in ('sources', 'anchors', 'chart_data', 'history')):
+                raise ValueError('Codex replay requires a Codex evidence.json or developments.json artifact')
+            history = replay['history'] if replay is not None else load_history(replay_edition=not args.send_to_everyone)
+            directory = ROOT / 'previews' / datetime.now(TIMEZONE).strftime('%Y%m%d-%H%M%S-%f')
+            make_preview(freshness, history, EDITORIAL_POLICY, directory, status=status, replay=replay)
+            if args.send_to_everyone:
+                status.stage('sending', preview=str(directory))
+                deliver(directory, everyone=True)
+                status.stage('completed')
+            return
         client = Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=180)
         fallback = OpenAI(api_key=OPENAI_API_KEY, max_retries=0, timeout=180)
         logging.info('Verified briefing window [%s, %s); primary=%s fallback=%s', start, end, AI_MODEL, TEXT_FALLBACK_MODEL)
@@ -271,7 +295,7 @@ def run_locked(args, production_run, lock):
                 EDITORIAL_POLICY, directory, Path(TEMPLATE_PATH).read_text(),
                 replay=replay['developments'] if replay is not None else None, status=status)
             logging.info('Validated editorial preview saved to %s', directory)
-            if not args.dry_run:
+            if args.send_to_everyone:
                 status.stage('sending', preview=str(directory))
                 deliver(directory, everyone=args.send_to_everyone)
                 status.stage('completed')
@@ -306,7 +330,7 @@ def run_locked(args, production_run, lock):
         (directory / 'newsletter.html').write_text(rendered)
         save_json(directory / 'delivery.json', {'edition_date': end.date().isoformat(), 'subject': subject, 'selected': selected, 'images': saved_images, 'html_sha256': hashlib.sha256(rendered.encode()).hexdigest()})
         logging.info('Validated preview saved to %s', directory)
-        if not args.dry_run:
+        if args.send_to_everyone:
             status.stage('sending', preview=str(directory))
             deliver(directory, everyone=args.send_to_everyone)
             status.stage('completed')

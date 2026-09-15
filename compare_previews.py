@@ -15,8 +15,8 @@ def summarize(directory):
     audit = json.loads((directory / 'audit.json').read_text())
     result = {'directory': str(directory.resolve()), 'subject': delivery['subject'],
         'edition_date': delivery.get('edition_date'), 'pipeline': delivery.get('pipeline', 'legacy'),
-        'headlines': [h.get_text(' ', strip=True) for h in soup.select('.story-header')],
-        'words': len(content.get_text(' ', strip=True).split()),
+        'headlines': [h.get_text(' ', strip=True) for h in soup.select('.story-header, .story h2')],
+        'words': review.get('word_count', len(content.get_text(' ', strip=True).split())),
         'selected_topics': [s['topic'] for s in delivery['selected']],
         'selected_events': [s['event_key'] for s in delivery['selected']],
         'approved': review['approved'], 'review_attempts': len(review.get('reviews', [])),
@@ -24,7 +24,7 @@ def summarize(directory):
         'text_usage': audit.get('text_usage', [])}
     edition_path = directory / 'edition.json'
     if edition_path.exists():
-        result['omissions'] = json.loads(edition_path.read_text()).get('omissions', [])
+        result['omissions'] = json.loads(edition_path.read_text()).get('omissions', audit.get('omissions', []))
     return result
 
 

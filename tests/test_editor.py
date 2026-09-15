@@ -282,7 +282,7 @@ class Research(unittest.TestCase):
             research_developments(None, None, {'AI': [source('public')], 'Vegan Movement': [source('private', True)]}, self.fresh,
                                   [{'source_id': 'history', 'title': 'SECRET private content'}], self.policy)
         self.assertNotIn('SECRET', str(search.call_args))
-        self.assertNotIn('private', str(search.call_args))
+        self.assertEqual(search.call_args.args[3]['source_id'], 'public')
 
     def test_verification_gets_public_history_only(self):
         actions = [Action(tool='verify', source_id='public', topic='AI', reason='Important'), Action(tool='finish', reason='Enough')]
@@ -399,13 +399,13 @@ class Runtime(unittest.TestCase):
         with self.assertRaises(ValueError):
             call_claude_parse_with_backoff(client, [{'role': 'user', 'content': 'test'}], Action)
 
-    def test_default_editor_dry_run_never_sends_or_updates_delivery_history(self):
+    def test_editor_dry_run_never_sends_or_updates_delivery_history(self):
         import briefing
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             template = root / 'template.html'
             template.write_text('<html>{newsletter_content}</html>')
-            with patch('sys.argv', ['main.py', '--dry-run']), patch('briefing.ROOT', root), patch('briefing.STATE', root / 'state'), patch('briefing.TEMPLATE_PATH', str(template)), patch('briefing.setup_logging', return_value=(MagicMock(), MagicMock())), patch('briefing.get_content', return_value=[]), patch('briefing.Anthropic'), patch('briefing.OpenAI'), patch('editor.runtime.research_developments', return_value=([], [])), patch('editor.runtime.generate_media', return_value={}), patch('briefing.send_email') as send:
+            with patch('sys.argv', ['main.py', '--dry-run', '--pipeline', 'editor']), patch('briefing.ROOT', root), patch('briefing.STATE', root / 'state'), patch('briefing.TEMPLATE_PATH', str(template)), patch('briefing.setup_logging', return_value=(MagicMock(), MagicMock())), patch('briefing.get_content', return_value=[]), patch('briefing.Anthropic'), patch('briefing.OpenAI'), patch('editor.runtime.research_developments', return_value=([], [])), patch('editor.runtime.generate_media', return_value={}), patch('briefing.send_email') as send:
                 briefing.run()
             send.assert_not_called()
             output = next((root / 'previews').glob('*/newsletter.html')).read_text()
