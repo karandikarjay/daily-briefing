@@ -64,7 +64,7 @@ def run_agent(role, model, data, directory, *, web=False, seconds=900):
                    '--enable', 'skip_host_skill_discovery']
         for feature in ('shell_tool', 'apps', 'plugins', 'hooks', 'multi_agent',
                         'browser_use', 'computer_use', 'image_generation', 'memories',
-                        'workspace_dependencies', 'code_mode_host', 'unified_exec'):
+                        'workspace_dependencies', 'unified_exec'):
             command.extend(['--disable', feature])
         command.append('-')
         started = time.monotonic()

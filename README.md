@@ -15,7 +15,7 @@ Only production group deliveries mark events as old. Personal previews never upd
 
 ## Runtime and deployment
 
-Install the pinned official Codex CLI 0.154.0 on the server and put `codex` on PATH, or set `CODEX_BINARY` to it. `CODEX_MODEL` defaults to `gpt-5.6-sol`. Existing `.env` credentials supply OpenAI (Codex and images), Tavily (independent prior-coverage search), and Gmail (FAST and delivery). The CLI runs with an isolated HOME/config and receives only the OpenAI credential. Private roles cannot browse or execute commands. Pin and evaluate CLI upgrades before changing production.
+Install the pinned official Codex CLI 0.154.0 and its matching `codex-code-mode-host` companion (beside the CLI executable) on the server and put `codex` on PATH, or set `CODEX_BINARY` to it. `CODEX_MODEL` defaults to `gpt-5.6-sol`. Existing `.env` credentials supply OpenAI (Codex and images), Tavily (independent prior-coverage search), and Gmail (FAST and delivery). The CLI runs with an isolated HOME/config and receives only the OpenAI credential. Private roles cannot browse or execute commands. Pin and evaluate CLI upgrades before changing production.
 
 The server's existing weekday cron and 6:45 Eastern watchdog remain in place. Track skill, brief, code and template changes together in Git; merge into `master` and fast-forward production. Each preview records the Git revision, model, source evidence, review history and token use. Keep private evidence, credentials and state out of Git. `AGENTS.md` describes synchronization and the rollback pipelines.
 

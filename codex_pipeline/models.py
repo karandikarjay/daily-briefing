@@ -17,6 +17,7 @@ class Lead(StrictModel):
 
 
 class Research(StrictModel):
+    research_completed: bool
     leads: list[Lead] = Field(max_length=18)
     coverage_note: str
 

@@ -37,9 +37,13 @@ def collect_public(freshness, policy, directory):
         'Open primary pages and search prior coverage. Return up to 18 strong leads with precise article '
         'URLs (not homepages), public context URLs and a prior_coverage_query identifying each event '
         'without restricting dates. Search each interest, then prioritize by significance. Do not '
-        'fill slots or use out-of-window stories. Aim for a useful pool of 8-12 leads when news warrants it.',
+        'fill slots or use out-of-window stories. Aim for a useful pool of 8-12 leads when news warrants it. '
+        'Set research_completed=false if search tools fail or you cannot perform the research. An empty '
+        'news pool is not equivalent to unavailable research.',
     }, directory, web=True, seconds=policy.research_seconds)
     private_json(directory / 'research.json', research.model_dump())
+    if not research.research_completed:
+        raise RuntimeError('Public research could not complete; inspect research.json before retrying')
     if research.leads and not TAVILY_API_KEY:
         raise RuntimeError('TAVILY_API_KEY required for independent original-announcement searches')
 

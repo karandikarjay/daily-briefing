@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 from content.freshness import Freshness
 from editor.policy import load_policy
-from codex_pipeline.models import Draft
+from codex_pipeline.models import Draft, Research
 from codex_pipeline.runtime import validate
 from codex_pipeline.rendering import render
 from codex_pipeline.agent import strict_schema
@@ -93,6 +93,12 @@ class CodexPipelineTests(unittest.TestCase):
                 self.assertEqual(briefing.load_history()[0]['event_key'],'hospital-study-2026')
                 with self.assertRaises(ValueError):
                     briefing.deliver(preview,everyone=True)
+
+    def test_unavailable_research_does_not_become_empty_news(self):
+        from codex_pipeline.runtime import collect_public
+        with tempfile.TemporaryDirectory() as tmp, patch('codex_pipeline.runtime.run_agent', return_value=Research(research_completed=False, leads=[], coverage_note='Tools unavailable')):
+            with self.assertRaisesRegex(RuntimeError,'could not complete'):
+                collect_public(self.fresh,load_policy(),Path(tmp))
 
     def test_default_generation_never_sends(self):
         with tempfile.TemporaryDirectory() as tmp:
