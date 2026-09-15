@@ -45,7 +45,7 @@ def run_agent(role, model, data, directory, *, web=False, seconds=900):
               'Use only supplied evidence in private editor/reviewer roles.\n' +
               json.dumps(data, ensure_ascii=False))
     (directory / f'{role}-input.json').write_text(json.dumps(data, ensure_ascii=False, indent=2))
-    chosen = os.environ.get('CODEX_MODEL', 'gpt-5.6-sol')
+    chosen = os.environ.get('CODEX_MODEL', 'gpt-6-astra')
     # A fresh HOME/CODEX_HOME prevents host skills, plugins, account sessions or MCP
     # configuration being inherited. No shell, browser, app, image, or agent tools.
     with tempfile.TemporaryDirectory(prefix='future-appetite-') as isolated:

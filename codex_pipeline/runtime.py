@@ -266,11 +266,11 @@ def make_preview(freshness, history, policy, directory, *, status=None, replay=N
     feedback, reviews, previous = [], [], None
     draft = None
     deadline = time.monotonic() + policy.composition_seconds
-    for attempt in range(policy.max_repairs + 1):
+    for attempt in range(policy.max_repairs + 2):
         if deadline-time.monotonic() < 30:
             break
-        if attempt == policy.max_repairs and feedback:
-            feedback = feedback + ['Final repair: prefer a shorter edition; remove unsupported claims or stories and keep essential qualifications.']
+        if attempt > policy.max_repairs and feedback:
+            feedback = feedback + ['Recovery rewrite: target 350 words of news plus brief chart notes. Retain only the strongest stories and essential qualifications. Resolve every outstanding issue from prior reviews; do not regress previously corrected claims.']
         draft = run_agent(f'editor-{attempt+1}', Draft, dict(frozen,
             assignment='Act as the private editor. Select only truly new events, compare to GROUP history '
             'semantically even when titles or event keys differ. Write coherent narratives with no intro '
@@ -283,14 +283,16 @@ def make_preview(freshness, history, policy, directory, *, status=None, replay=N
             'to story freshness: report its actual observation date, never pretend monthly data is daily. '
             'Write 450-550 words of news and reserve roughly 100-150 for the five chart notes. '
             'Avoid unsupported claims in illustration captions too. Use literal informative headlines; '
-            'do not treat a company valuation as money invested.',
+            'do not treat a company valuation as money invested. When revising, preserve sound copy, '
+            'resolve ALL prior feedback, and keep essential qualifications even when shortening. '
+            'Do not mention supplied reporting, retained evidence, or the verification process in reader copy.',
             feedback=feedback, previous_draft=previous), directory,
             seconds=max(1, int(deadline-time.monotonic())))
         previous = draft.model_dump()
         try:
             words = validate(draft, sources, anchors, history, freshness, policy, chart_data)
         except ValueError as exc:
-            feedback = [str(exc)]
+            feedback = list(dict.fromkeys(feedback + [str(exc)]))
             reviews.append({'approved': False, 'stage': 'validation', 'issues': feedback})
             continue
         if deadline-time.monotonic() < 30:
@@ -314,7 +316,7 @@ def make_preview(freshness, history, policy, directory, *, status=None, replay=N
         private_json(directory / 'final-review.json', {'approved': False, 'reviews': reviews})
         if review.approved and not review.issues:
             break
-        feedback = review.issues or ['Review did not approve; simplify or omit unsupported material.']
+        feedback = list(dict.fromkeys(feedback + (review.issues or ['Review did not approve; simplify or omit unsupported material.'])))
     approved = bool(reviews and reviews[-1]['stage'] == 'independent_review' and
                     reviews[-1]['approved'] and not reviews[-1]['issues'])
     if not approved:
@@ -352,7 +354,7 @@ def make_preview(freshness, history, policy, directory, *, status=None, replay=N
     })
     private_json(directory / 'audit.json', dict(base, status='approved' if approved else 'service_notice',
         commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
-        codex_model=os.environ.get('CODEX_MODEL', 'gpt-5.6-sol'),
+        codex_model=os.environ.get('CODEX_MODEL', 'gpt-6-astra'),
         text_usage=[json.loads(p.read_text()) for p in sorted(directory.glob('*-usage.json'))],
         omissions=[o.model_dump() for o in draft.omissions], word_count=words))
     logging.info('Validated Codex preview saved to %s (%s words)', directory, words)

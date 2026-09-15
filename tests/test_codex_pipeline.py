@@ -94,6 +94,22 @@ class CodexPipelineTests(unittest.TestCase):
             self.assertEqual(sources['a']['novelty_check']['prior_coverage_query'],lead.prior_coverage_query)
             self.assertEqual(agent.call_count,1)
 
+    def test_feedback_survives_a_structural_repair_and_replay_stays_unsendable(self):
+        from codex_pipeline.runtime import make_preview
+        from codex_pipeline.models import Review
+        invalid=self.draft.model_copy(deep=True)
+        invalid.developments[0].evidence_quote='This unsupported statement was invented.'
+        responses=[invalid,self.draft,Review(approved=False,issues=['Keep the parliamentary qualification.']),self.draft,Review(approved=True,issues=[])]
+        frozen={'sources':self.sources,'anchors':['a'],'chart_data':{}}
+        with tempfile.TemporaryDirectory() as tmp, patch('codex_pipeline.runtime.run_agent',side_effect=responses) as agent:
+            p=Path(tmp)/'preview'
+            make_preview(self.fresh,[],load_policy(),p,replay=frozen)
+            final_editor=agent.call_args_list[3].args[2]
+            self.assertTrue(any('quote not found' in issue for issue in final_editor['feedback']))
+            self.assertIn('Keep the parliamentary qualification.',final_editor['feedback'])
+            with self.assertRaisesRegex(ValueError,'cannot be sent'):
+                briefing.deliver(p)
+
     def test_wire_schema_has_all_required_fields(self):
         schema=strict_schema(Draft)
         self.assertEqual(set(schema['required']),set(schema['properties']))
