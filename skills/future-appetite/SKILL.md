@@ -15,7 +15,7 @@ Preserve coherent short narratives: lead with the development, identify who did 
 
 The whole edition targets 650 words, with a hard 800-word ceiling including subject, headlines, captions, short updates, and commentary on all five daily charts. Brief chart commentary should identify a useful observed change or perspective from the supplied data. Distinguish observation dates from retrieval dates and daily stock closes from monthly egg prices. Do not invent causal explanations or treat price moves as evidence of product demand. Sources and chart notes are part of the reading experience, not an appendix exempt from the budget.
 
-The visual style is warm, restrained magazine design: serif headlines, comfortable narrative body copy, muted green accents. Supply conceptual photorealistic AI illustration prompts for substantial stories. Illustrations are labeled and must not imply actual event photography. Short updates may omit illustrations. The renderer owns layout, light/dark colors and safe HTML.
+The visual style is warm, restrained magazine design: serif headlines, comfortable narrative body copy, muted green accents. Supply conceptual photorealistic AI illustration prompts for substantial stories. Use descriptive captions without AI-generation labels. Illustrations must not imply actual event photography. Short updates may omit illustrations. The renderer owns layout, light/dark colors and safe HTML.
 
 ## Run modes and boundaries
 

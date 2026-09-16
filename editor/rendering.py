@@ -59,7 +59,7 @@ def render_content(edition, developments, images=None, *, placeholders=False):
         if story.image_description and (image_id in images or placeholders):
             pieces.append(f'<img class="story-image" src="cid:{image_id}" alt="AI-generated illustration: {escape(story.headline, quote=True)}">')
             caption = story.image_caption or 'Illustration'
-            pieces.append(f'<p class="image-caption">AI-generated illustration. {escape(caption)}</p>')
+            pieces.append(f'<p class="image-caption">{escape(caption)}</p>')
         pieces.append('<div class="story-content">')
         cited = []
         for paragraph in story.paragraphs:

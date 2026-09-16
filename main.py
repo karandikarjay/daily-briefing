@@ -180,7 +180,7 @@ def generate_cohesive_newsletter(
         "\n• Think: professional news photography, documentary style"
         "\n• Describe realistic scenes with natural compositions"
         "\n• AVOID: text, logos, charts, obvious AI artifacts"
-        "\n• Caption: brief; clearly label it AI-generated illustration"
+        "\n• Caption: brief and descriptive; omit AI-generation labels"
     )
 
     # Convert news items to a string for the API call

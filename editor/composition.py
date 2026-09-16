@@ -276,7 +276,7 @@ effective or replicable unless the supplied evidence establishes that conclusion
 Use reporting or analysis paragraph kinds. Labels are optional and should be useful.
 Explain why each unselected verified development was omitted in omissions (private audit).
 Provide a conceptual AI illustration description and concise caption for EVERY story,
-up to max_images. Do not imply actual news photography or invent event details.
+up to max_images. Omit AI-generation labels from captions. Do not imply actual news photography or invent event details.
 The regular five market charts are added separately; leave charts empty. Do not
 invent prices, returns, or trends. Their headings count toward the word budget.
 If feedback is provided, repair the cited problems while retaining sound reporting.

@@ -41,7 +41,7 @@ def render(edition, sources, images, chart_data, template, *, placeholders=False
         key = f'story_image_{i}'
         if story.image_description and (key in images or placeholders):
             pieces.append(f'<img width="580" style="display:block;width:100%;max-width:580px;height:auto;border:0;" src="cid:{key}" alt="AI-generated conceptual illustration: {escape(story.headline, quote=True)}">')
-            pieces.append(f'<p class="muted" style="font-size:12px;line-height:1.5;color:#606854;margin:8px 0 18px;">AI-generated illustration. {escape(story.image_caption or "Conceptual scene.")}</p>')
+            pieces.append(f'<p class="muted" style="font-size:12px;line-height:1.5;color:#606854;margin:8px 0 18px;">{escape(story.image_caption or "Conceptual scene.")}</p>')
         for p in story.paragraphs:
             pieces.append(f'<p style="font-size:16px;line-height:1.65;margin:0 0 14px;">{linked_text(p, sources)}</p>')
         pieces.append('</section>')
