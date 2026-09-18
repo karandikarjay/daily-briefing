@@ -1,5 +1,6 @@
 """Skill-led newsletter: autonomous research, private writing, controlled delivery artifacts."""
 from concurrent.futures import ThreadPoolExecutor
+from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -21,6 +22,10 @@ from .rendering import render, word_count
 TEMPLATE = Path(__file__).with_name('template.html')
 SERVICE_NOTICE = ('Today’s briefing could not be completed to our editorial standards. '
                   'We’re withholding the unapproved stories. This does not mean there were no newsworthy developments.')
+
+
+class OmissionValidationError(ValueError):
+    """Source accounting can be repaired without shortening the edition."""
 
 
 def private_json(path, data):
@@ -212,8 +217,21 @@ def validate(draft, sources, anchors, history, freshness, policy, chart_data):
     if used != set(developments):
         raise ValueError('Every selected development must appear in a story')
     omissions = [o.source_id for o in draft.omissions]
-    if len(omissions) != len(set(omissions)) or set(omissions) != set(anchors) - selected_sources:
-        raise ValueError('Account for every unselected candidate source exactly once in omissions')
+    expected_omissions = set(anchors) - selected_sources
+    missing = sorted(expected_omissions - set(omissions))
+    unexpected = sorted(set(omissions) - expected_omissions)
+    duplicates = sorted(sid for sid, count in Counter(omissions).items() if count > 1)
+    if missing or unexpected or duplicates:
+        raise OmissionValidationError(
+            'Account for every unselected candidate source exactly once in omissions. '
+            f'Missing source IDs: {json.dumps(missing)}; '
+            f'unexpected source IDs: {json.dumps(unexpected)}; '
+            f'duplicate source IDs: {json.dumps(duplicates)}. '
+            'Add a reason for each missing ID, remove unexpected IDs, and retain exactly '
+            'one reason per duplicate ID. Only unselected anchors belong in omissions; '
+            'background sources and selected sources do not. For this bookkeeping repair, '
+            'preserve the edition and developments; do not rewrite or shorten sound copy.'
+        )
     if any(not o.reason.strip() for o in draft.omissions):
         raise ValueError('Empty omission reason')
     keys = [n.key for n in draft.edition.market_notes]
@@ -265,11 +283,12 @@ def make_preview(freshness, history, policy, directory, *, status=None, replay=N
         status.stage('composing', preview=str(directory))
     feedback, reviews, previous = [], [], None
     draft = None
+    omission_repair = False
     deadline = time.monotonic() + policy.composition_seconds
     for attempt in range(policy.max_repairs + 2):
         if deadline-time.monotonic() < 30:
             break
-        if attempt > policy.max_repairs and feedback:
+        if attempt > policy.max_repairs and feedback and not omission_repair:
             feedback = feedback + ['Recovery rewrite: target 350 words of news plus brief chart notes. Retain only the strongest stories and essential qualifications. Resolve every outstanding issue from prior reviews; do not regress previously corrected claims.']
         draft = run_agent(f'editor-{attempt+1}', Draft, dict(frozen,
             assignment='Act as the private editor. Select only truly new events, compare to GROUP history '
@@ -278,7 +297,11 @@ def make_preview(freshness, history, policy, directory, *, status=None, replay=N
             'source_id event identifier and its evidence_source_id from sources. Give exact quotes. '
             'All paragraph citations use retained source IDs, with link_text exactly matching a phrase '
             'in that paragraph, or empty for private email. Identify who did research. For each '
-            'unselected anchor give a source_id and omission reason. Consider the unrestricted prior '
+            'unselected anchor give a source_id and omission reason exactly once. '
+            'The omissions IDs must equal anchors minus the evidence_source_id values of '
+            'selected developments. Never include background sources outside anchors or '
+            'selected sources in omissions. Repair omission bookkeeping without rewriting '
+            'sound story copy. Consider the unrestricted prior '
             'coverage results; old context never makes an old event new. Chart data is an exception '
             'to story freshness: report its actual observation date, never pretend monthly data is daily. '
             'Write 450-550 words of news and reserve roughly 100-150 for the five chart notes. '
@@ -292,9 +315,11 @@ def make_preview(freshness, history, policy, directory, *, status=None, replay=N
         try:
             words = validate(draft, sources, anchors, history, freshness, policy, chart_data)
         except ValueError as exc:
+            omission_repair = isinstance(exc, OmissionValidationError)
             feedback = list(dict.fromkeys(feedback + [str(exc)]))
             reviews.append({'approved': False, 'stage': 'validation', 'issues': feedback})
             continue
+        omission_repair = False
         if deadline-time.monotonic() < 30:
             break
         review = run_agent(f'reviewer-{attempt+1}', Review, dict(frozen, draft=previous,

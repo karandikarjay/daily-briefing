@@ -60,6 +60,43 @@ class CodexPipelineTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'each available chart'):
             self.check(chart_data={'bynd-chart':{}})
 
+    def test_omission_feedback_identifies_missing_unexpected_and_duplicate_ids(self):
+        from codex_pipeline.models import Omitted
+        self.sources['background'] = dict(self.sources['a'], source_id='background')
+        self.draft.omissions = [Omitted(source_id=sid, reason='Not selected.')
+                               for sid in ('a', 'background', 'unknown', 'b', 'b')]
+        with self.assertRaises(ValueError) as caught:
+            validate(self.draft, self.sources, ['a', 'b', 'c'], [], self.fresh, load_policy(), {})
+        message = str(caught.exception)
+        self.assertIn('Missing source IDs: ["c"]', message)
+        self.assertIn('unexpected source IDs: ["a", "background", "unknown"]', message)
+        self.assertIn('duplicate source IDs: ["b"]', message)
+
+    def test_background_omission_repair_reaches_independent_review(self):
+        from codex_pipeline.runtime import make_preview
+        from codex_pipeline.models import Omitted, Review
+        self.sources['background'] = dict(self.sources['a'], source_id='background',
+                                         published_at='2026-09-13T12:00:00-04:00')
+        self.sources['b'] = dict(self.sources['a'], source_id='b')
+        corrected = self.draft.model_copy(deep=True)
+        corrected.omissions = [Omitted(source_id='b', reason='Less consequential.')]
+        invalid = corrected.model_copy(deep=True)
+        invalid.omissions.append(Omitted(source_id='background', reason='Older context.'))
+        frozen = {'sources': self.sources, 'anchors': ['a', 'b'], 'chart_data': {}}
+        responses = [invalid, invalid, invalid, corrected, Review(approved=True, issues=[])]
+        with tempfile.TemporaryDirectory() as tmp, patch('codex_pipeline.runtime.run_agent', side_effect=responses) as agent:
+            make_preview(self.fresh, [], load_policy(), Path(tmp), replay=frozen)
+            repair = agent.call_args_list[3].args[2]
+            self.assertIn('unexpected source IDs: ["background"]', repair['feedback'][0])
+            self.assertIn('preserve the edition and developments', repair['feedback'][0])
+            self.assertEqual(repair['previous_draft']['edition'], corrected.edition.model_dump())
+            self.assertFalse(any('Recovery rewrite' in issue for issue in repair['feedback']))
+            self.assertEqual(agent.call_args_list[4].args[0], 'reviewer-4')
+            review = json.loads((Path(tmp) / 'final-review.json').read_text())
+            self.assertTrue(review['approved'])
+            with self.assertRaisesRegex(ValueError, 'cannot be sent'):
+                briefing.deliver(Path(tmp))
+
     def test_narrative_links_escape_text_and_preserve_url(self):
         self.draft.edition.stories[0].headline='<script>alert(1)</script>'
         html=render(self.draft.edition,self.sources,{}, {},'{newsletter_content}')
