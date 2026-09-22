@@ -7,7 +7,8 @@ MODE=${1:-preview}
 case "$MODE" in preview|personal|group) ;; *) echo 'Usage: run.sh [preview|personal|group]' >&2; exit 2 ;; esac
 [[ $# -le 1 ]] || { echo 'Unexpected arguments' >&2; exit 2; }
 export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
-for tool in codex flock timeout jq node gws-as; do
+: "${HOME:?Set HOME to the production account home directory}"
+for tool in codex bwrap flock timeout jq node gws-as; do
   command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
 mkdir -p "$ROOT/state" "$ROOT/runs"

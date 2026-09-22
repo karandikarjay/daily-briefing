@@ -14,7 +14,7 @@ During the September 21 architecture cutover, Jay authorized a production person
 
 The `.env` file is trusted shell syntax, permissions 0600, and is never committed. It provides `OPENAI_API_KEY`, `GOOGLE_USERNAME`, `PERSONAL_RECIPIENT`, and `RECIPIENT_EMAILS`. Existing Google OAuth credentials live outside the repository in the account-specific `gws-as` profile. Use `gws-as` for all email access and sending. The newsletter's explicit invocation authorization governs delivery; ordinary correspondence still follows Jay's global email conventions. No Gmail drafts.
 
-Production tools: Codex, Bash, coreutils (`flock`, `timeout`), Git, jq, curl, Node.js, gws/gws-as, Chrome, and rsvg-convert. General-purpose installed tools are dependencies, not another application to maintain here.
+Production tools: Codex, Bubblewrap (its Linux shell sandbox), Bash, coreutils (`flock`, `timeout`), Git, jq, curl, Node.js, gws/gws-as, Chrome, and rsvg-convert. General-purpose installed tools are dependencies, not another application to maintain here.
 
 ## State and investigation
 
