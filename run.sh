@@ -51,7 +51,7 @@ CODEX_API_KEY="$OPENAI_API_KEY" timeout --signal=TERM --kill-after=30s 2400 \
   --enable skip_host_skill_discovery --disable apps --disable plugins --disable hooks \
   --disable memories --disable multi_agent --json --output-last-message "$RUN_DIR/result.md" \
   "Read $ROOT/skills/future-appetite/SKILL.md and execute it completely in $MODE mode. This is the authorized Future Appetite newsletter job. Use the environment for paths and credentials; never print secrets. Save this run's artifacts in $RUN_DIR. The launcher already holds the run lock. Do not change the skill, launcher, credentials, recipient configuration, or schedule. Finish by recording status.json as described in the skill." \
-  > "$RUN_DIR/events.jsonl" 2> "$RUN_DIR/stderr.log"
+  </dev/null > "$RUN_DIR/events.jsonl" 2> "$RUN_DIR/stderr.log"
 RESULT=$?
 set -e
 jq --arg at "$(date -Iseconds)" --argjson code "$RESULT" \
