@@ -10,7 +10,7 @@ Production uses the SSH alias `daily-briefing-prod` and checkout `~/daily-briefi
 - `./run.sh personal`: send one edition only to the configured personal recipient when explicitly authorized.
 - `./run.sh group`: production only; requires `state/group-enabled` and standing schedule authorization. Never use for development/testing.
 
-During the September 21 architecture cutover, Jay authorized a production personal test. Group delivery remains disabled until Jay approves that email. The skill cannot enable its own group schedule. Once approved, the weekday job runs at 6 a.m. America/New_York, accounting for daylight saving time.
+Jay approved scheduled group delivery on September 21, 2026 after the production personal test. The weekday job runs at 6 a.m. America/New_York, accounting for daylight saving time. The operator-controlled state/group-enabled file enables this standing authorization; the skill cannot create or change that gate itself.
 
 The `.env` file is trusted shell syntax, permissions 0600, and is never committed. It provides `OPENAI_API_KEY`, `GOOGLE_USERNAME`, `PERSONAL_RECIPIENT`, and `RECIPIENT_EMAILS`. Existing Google OAuth credentials live outside the repository in the account-specific `gws-as` profile. Use `gws-as` for all email access and sending. The newsletter's explicit invocation authorization governs delivery; ordinary correspondence still follows Jay's global email conventions. No Gmail drafts.
 
