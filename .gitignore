@@ -1,24 +1,12 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Logs
-*.log
-
-# Configuration
 .env
-
-# Images
+*.log
 *.png
-
-# IDE
-.vscode/
-.idea/
-# Runtime and private verification evidence
-venv/
+runs/
 state/
 previews/
+venv/
+__pycache__/
+*.py[cod]
 .pytest_cache/
-
-/venv
+.vscode/
+.idea/
